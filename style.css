@@ -4,18 +4,28 @@
 body {
     font-family: sans-serif;
     padding: 20px;
+    background-color: #f8f8f8;
+    /* --- RTL: Set entire document to RTL --- */
+    direction: rtl; 
+}
+
+h1 {
+    text-align: center;
+    color: #333;
 }
 
 h2 {
-    margin-top: 30px;
+    margin-top: 25px;
     margin-bottom: 5px;
+    font-size: 1.2em;
+    color: #555;
+    /* --- RTL: Ensure lot titles are right-aligned --- */
+    text-align: right; 
 }
 
-/* The main container only needs to define the max width and margins, 
-   as the lot heatmaps are stacked vertically inside it. */
 #heatmap-container {
-    max-width: 900px; /* Reduced width to fit the 8 columns (Time + 7 Days) comfortably */
-    margin: 20px auto; /* Center the container */
+    max-width: 900px;
+    margin: 20px auto;
 }
 
 
@@ -26,49 +36,66 @@ h2 {
 /* Style for the container holding the grid of a single lot */
 .grid-container {
     display: grid;
-    /* Grid columns are set dynamically in script.js to: 80px (Time) + 7 * 1fr (Days) */
+    /* Columns set dynamically in script.js: 60px (Day label) + 72 columns (10px each) */
     gap: 1px;
     border: 1px solid #ccc;
-    margin-bottom: 20px;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden; 
 }
 
 /* Style for the row/column labels */
 .time-label {
-    padding: 3px 5px;
+    padding: 0 5px; 
     font-weight: bold;
-    text-align: center; /* Center the day labels */
-    background-color: #f0f0f0;
-    font-size: 0.8em;
+    text-align: center;
+    background-color: #e0e0e0;
+    font-size: 0.7em;
     box-sizing: border-box;
     border: 1px solid #ddd;
+    height: 10px; 
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 
-/* Ensure the time column labels are left-aligned */
-.grid-container .time-label:nth-child(8n+1) { /* The first column in every row */
-    text-align: left;
-    font-weight: normal;
+/* Day labels (the first column in every row) */
+.grid-container .time-label:nth-child(73n+1) { 
+    height: 10px; 
+    text-align: right; /* --- RTL: Right align the day names --- */
+    padding-right: 10px; 
+    font-weight: bold;
+    font-size: 0.8em;
+    justify-content: flex-end; /* --- RTL: Push day name to the right --- */
 }
 
+/* The very top row (Time Header) needs a custom height to show the time string */
+.grid-container .time-label-header {
+    height: 25px;
+    background-color: #bbb;
+    font-weight: bold;
+    font-size: 0.8em;
+    padding: 5px 0;
+}
 
 /* ----------------------------------
  * 3. Heatmap Cells and Colors
  * ---------------------------------- */
 
 .heatmap-cell {
-    /* Set a fixed small height for 72 rows */
     height: 10px; 
-    border: 1px solid #eee;
+    border: none;
     box-sizing: border-box;
-    cursor: help; /* Indicates that the cell has a title (tooltip) */
+    cursor: help; 
 }
 
 /* Color codes for Vacancy Status (code_achoza) */
-.status-1 { background-color: #4CAF50; } /* Green: Free */
-.status-2 { background-color: #FFC107; } /* Yellow/Amber: Almost Full */
-.status-3 { background-color: #F44336; } /* Red: Full */
-.status-4 { background-color: #9E9E9E; } /* Grey: Unknown/Failure */
-.status-empty { background-color: #f7f7f7; } /* Light Grey/White: No data */
+.status-1 { background-color: #4CAF50; } 
+.status-2 { background-color: #FFC107; } 
+.status-3 { background-color: #F44336; } 
+.status-4 { background-color: #9E9E9E; } 
+.status-empty { background-color: #f7f7f7; } 
 
 
 /* ----------------------------------
@@ -80,6 +107,9 @@ h2 {
     border-radius: 5px;
     background-color: #fff;
     margin-bottom: 20px;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    /* --- RTL: Ensure legend text starts from the right --- */
+    text-align: right;
 }
 .legend h3 {
     margin-top: 0;
@@ -88,13 +118,12 @@ h2 {
 .legend span {
     display: inline-block;
     padding: 3px 8px;
-    margin-right: 10px;
+    margin-left: 10px; /* Adjusted margin for RTL */
+    margin-right: 0;
     margin-bottom: 5px;
     font-size: 0.9em;
     border-radius: 3px;
     color: #333;
-    /* Reset background color to be just the status color */
     border: none; 
 }
-/* Ensure legend text is readable over the background color */
 .status-3, .status-4 { color: white; }
