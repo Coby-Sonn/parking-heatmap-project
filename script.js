@@ -40,9 +40,12 @@ async function loadAndProcessData() {
     // --- 1. Get Current Day and Slot for Interpolation Limit ---
     const now = new Date();
     const currentDay = now.getDay();
-    // Use Math.ceil to ensure the current slot (which is potentially still collecting data) 
-    // is the LAST slot we consider filled. Everything after that must be empty.
-    const currentSlot = Math.ceil(getTimeSlotIndex(now)); 
+    // Use Math.ceil on the raw minutes/20 so we include the fractional part of the
+    // current 20-minute interval. Calling Math.ceil on getTimeSlotIndex(now)
+    // (which already floors) loses that fraction and causes the current slot
+    // to be treated as "future" and cleared — which is why a 14:40 row could
+    // disappear when the real time is 14:30.
+    const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20);
     // -----------------------------------------------------------
 
     // 1. Fetch Data
