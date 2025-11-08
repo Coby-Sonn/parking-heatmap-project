@@ -1,0 +1,100 @@
+/* ----------------------------------
+ * 1. Basic Reset and Page Layout
+ * ---------------------------------- */
+body {
+    font-family: sans-serif;
+    padding: 20px;
+}
+
+h2 {
+    margin-top: 30px;
+    margin-bottom: 5px;
+}
+
+/* The main container only needs to define the max width and margins, 
+   as the lot heatmaps are stacked vertically inside it. */
+#heatmap-container {
+    max-width: 900px; /* Reduced width to fit the 8 columns (Time + 7 Days) comfortably */
+    margin: 20px auto; /* Center the container */
+}
+
+
+/* ----------------------------------
+ * 2. Individual Heatmap Grid (for ONE Lot)
+ * ---------------------------------- */
+
+/* Style for the container holding the grid of a single lot */
+.grid-container {
+    display: grid;
+    /* Grid columns are set dynamically in script.js to: 80px (Time) + 7 * 1fr (Days) */
+    gap: 1px;
+    border: 1px solid #ccc;
+    margin-bottom: 20px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Style for the row/column labels */
+.time-label {
+    padding: 3px 5px;
+    font-weight: bold;
+    text-align: center; /* Center the day labels */
+    background-color: #f0f0f0;
+    font-size: 0.8em;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+}
+
+/* Ensure the time column labels are left-aligned */
+.grid-container .time-label:nth-child(8n+1) { /* The first column in every row */
+    text-align: left;
+    font-weight: normal;
+}
+
+
+/* ----------------------------------
+ * 3. Heatmap Cells and Colors
+ * ---------------------------------- */
+
+.heatmap-cell {
+    /* Set a fixed small height for 72 rows */
+    height: 10px; 
+    border: 1px solid #eee;
+    box-sizing: border-box;
+    cursor: help; /* Indicates that the cell has a title (tooltip) */
+}
+
+/* Color codes for Vacancy Status (code_achoza) */
+.status-1 { background-color: #4CAF50; } /* Green: Free */
+.status-2 { background-color: #FFC107; } /* Yellow/Amber: Almost Full */
+.status-3 { background-color: #F44336; } /* Red: Full */
+.status-4 { background-color: #9E9E9E; } /* Grey: Unknown/Failure */
+.status-empty { background-color: #f7f7f7; } /* Light Grey/White: No data */
+
+
+/* ----------------------------------
+ * 4. Legend Styling
+ * ---------------------------------- */
+.legend {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    margin-bottom: 20px;
+}
+.legend h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+}
+.legend span {
+    display: inline-block;
+    padding: 3px 8px;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    border-radius: 3px;
+    color: #333;
+    /* Reset background color to be just the status color */
+    border: none; 
+}
+/* Ensure legend text is readable over the background color */
+.status-3, .status-4 { color: white; }
