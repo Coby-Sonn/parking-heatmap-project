@@ -1,7 +1,6 @@
 // =================================================================
-// 1. CONFIGURATION 
+// 1. CONFIGURATION
 // =================================================================
-
 const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co';
 const SUPABASE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNobXRreHNocnNya3dvdmpva3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDQ4MjAsImV4cCI6MjA3NzgyMDgyMH0.oENVmyU00Uy2N6gxir54yu4T0Jw_Jay2tITeQW3QfqE';
@@ -11,14 +10,17 @@ const SLOTS_PER_DAY = 72;
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 // =================================================================
-// 2. SIMPLE LOCAL HELPERS
+// 2. SIMPLE LOCAL HELPERS (no manual offset math)
 // =================================================================
 
 function getLocalDayHourMinute(utcString) {
-  const d = new Date(utcString);                 // UTC from Supabase
-  const offsetMs = d.getTimezoneOffset() * 60000; // minutes → ms
-  const local = new Date(d.getTime() - offsetMs); // convert to local
-  return { day: local.getDay(), hour: local.getHours(), minute: local.getMinutes() };
+  // ✅ Let the browser convert UTC → local automatically
+  const local = new Date(utcString);
+  return {
+    day: local.getDay(),            // 0 = Sunday
+    hour: local.getHours(),
+    minute: local.getMinutes(),
+  };
 }
 
 function getSlot(hour, minute) {
@@ -35,7 +37,6 @@ function getTimeLabel(slot) {
 // =================================================================
 // 3. FETCH + PROCESS
 // =================================================================
-
 async function loadAndProcessData() {
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const container = document.getElementById('heatmap-container');
@@ -52,9 +53,8 @@ async function loadAndProcessData() {
   }
 
   const now = new Date();
-  const nowLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  const currentDay = nowLocal.getDay();
-  const currentSlot = getSlot(nowLocal.getHours(), nowLocal.getMinutes());
+  const currentDay = now.getDay();
+  const currentSlot = getSlot(now.getHours(), now.getMinutes());
 
   const aggregated = {};
   const lots = new Set();
@@ -68,7 +68,7 @@ async function loadAndProcessData() {
     aggregated[lot][day][slot] = row.api_status_code;
   });
 
-  // Fill gaps
+  // Interpolate
   const interp = {};
   for (const lot of lots) {
     interp[lot] = {};
@@ -90,7 +90,6 @@ async function loadAndProcessData() {
 // =================================================================
 // 4. RENDER
 // =================================================================
-
 function getStatusText(c){
   return {1:'פנוי',2:'כמעט מלא',3:'מלא',4:'לא ידוע/כישלון',0:'אין נתונים'}[c] || c;
 }
