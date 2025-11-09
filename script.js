@@ -14,10 +14,13 @@ const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שי
 // =================================================================
 
 function getLocalDayHourMinute(utcString) {
-  // ✅ Let the browser convert UTC → local automatically
-  const local = new Date(utcString);
+  const d = new Date(utcString);
+
+  // ✅ Force Israel offset (UTC+2). 120 min × 60 000 = 7 200 000 ms
+  const local = new Date(d.getTime() + 2 * 60 * 60 * 1000);
+
   return {
-    day: local.getDay(),            // 0 = Sunday
+    day: local.getDay(),      // now truly local Israel weekday
     hour: local.getHours(),
     minute: local.getMinutes(),
   };
