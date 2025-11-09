@@ -192,8 +192,7 @@ class LotSelector {
         // Simple icon mapping based on lot name keywords
         const name = lotName.toLowerCase();
         
-        if (name.includes('מזרח') || name.includes('מערב')) return '🧭';
-        if (name.includes('צפון') || name.includes('דרום')) return '🧭';
+        if (name.includes('רידינג')) return '🏭';
         if (name.includes('תחנה')) return '🚉';
         if (name.includes('חוף') || name.includes('ים')) return '🏖️';
         if (name.includes('גן') || name.includes('פארק')) return '🌳';
@@ -202,7 +201,7 @@ class LotSelector {
         if (name.includes('תרבות')) return '🎭';
         if (name.includes('רפואה') || name.includes('רפואי') || name.includes('אסותא')) return '🏥';
         if (name.includes('כרמל')) return '⛰️';
-        if (name.includes('יפו')) return '🌊';
+        if (name.includes('יפו')) return '🍊';
         if (name.includes('תל')) return '🏙️';
         
         return '🅿️'; // Default parking icon

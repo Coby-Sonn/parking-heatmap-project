@@ -101,40 +101,40 @@
     justify-content: center;
 }
 
+/* Ensure legend text has no background and the colored circle sits to the right */
 .legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 1rem;
     font-weight: 500;
     color: #2c3e50;
+    background: transparent; /* no colored background behind label text */
+    padding: 0;
+    margin: 0;
+    flex-direction: row-reverse; /* place .color-box to the right */
 }
 
+/* Prevent accidental coloring of the whole legend-item if a status-* class is present */
+.legend-item.status-1,
+.legend-item.status-2,
+.legend-item.status-3,
+.legend-item.status-4,
+.legend-item.status-empty {
+    background: transparent;
+    color: #2c3e50;
+}
+
+/* Keep the color-box compact; only this element is filled by status classes */
 .color-box {
     width: 20px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: 50%;
     border: 1px solid #ddd;
-}
-
-.legend-item.status-1 .color-box {
-    background: #27ae60;
-}
-
-.legend-item.status-2 .color-box {
-    background: #f39c12;
-}
-
-.legend-item.status-3 .color-box {
-    background: #e74c3c;
-}
-
-.legend-item.status-4 .color-box {
-    background: #9b59b6;
-}
-
-.legend-item.status-empty .color-box {
-    background: #ecf0f1;
+    display: inline-block;
+    box-sizing: border-box;
+    flex: none;
+    margin-inline-start: 8px; /* small spacing when RTL/LTR */
 }
 
 /* Heatmap container */
@@ -145,7 +145,8 @@
     border-radius: 15px;
     margin-bottom: 30px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    overflow-x: auto;
+    overflow-x: auto; /* allow horizontal scroll */
+    -webkit-overflow-scrolling: touch; /* smoother scrolling on mobile */
 }
 
 /* Grid container for heatmap */
@@ -154,8 +155,11 @@
     gap: 1px;
     background: #ddd;
     border-radius: 8px;
-    overflow: hidden;
-    min-width: 800px;
+    /* allow the grid to size to its full content so the parent can scroll */
+    width: max-content;
+    overflow: visible; /* do not clip the grid — parent will handle scrolling */
+    /* remove fixed min-width so content width determines horizontal scroll */
+    /* min-width: 800px; */ 
     direction: rtl;
 }
 
@@ -181,7 +185,7 @@
 /* Heatmap cells */
 .heatmap-cell {
     min-height: 25px;
-    min-width: 15px;
+    min-width: 15px; /* keep this so width:max-content produces a scrollable width */
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
@@ -305,6 +309,32 @@
 .retry-btn:hover {
     background: #2980b9;
     transform: translateY(-2px);
+}
+
+/* Lottie loader container override / sizing & flip */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 30px 0;
+}
+
+/* Make the lottie larger and flip horizontally so the animation faces left */
+.lottie-player {
+    width: 150px;
+    height: 150px;
+    display: block;
+    transform: scaleX(-1); /* flip horizontally */
+    -webkit-transform: scaleX(-1);
+    backface-visibility: hidden;
+    transform-origin: center;
+}
+
+/* Hide any legacy CSS/markup spinner that might be injected before the Lottie loads */
+.loading .spinner {
+    display: none !important;
 }
 
 /* Responsive design */

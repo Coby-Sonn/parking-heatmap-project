@@ -13,6 +13,68 @@ const CONFIG = {
     MAX_RETRIES: 3
 };
 
+// add near top of utils.js (once): default config for interpolation threshold
+window.__HEATMAP_CONFIG = window.__HEATMAP_CONFIG || {};
+// change this value to alter when interpolation is allowed (e.g. 3 samples minimum)
+window.__HEATMAP_CONFIG.minSamplesToInterpolate = window.__HEATMAP_CONFIG.minSamplesToInterpolate ?? 3;
+
+// ---- Insert near top of utils.js (config + helpers) ----
+window.__HEATMAP_CONFIG = window.__HEATMAP_CONFIG || {};
+// minimum samples to run the full interpolation algorithm (tune as needed)
+window.__HEATMAP_CONFIG.minSamplesForFullInterpolation = window.__HEATMAP_CONFIG.minSamplesForFullInterpolation ?? 3;
+// how many neighboring slots to fill around a sparse sample (e.g. 1 = sample slot +/- 1)
+window.__HEATMAP_CONFIG.sparseSampleSpread = window.__HEATMAP_CONFIG.sparseSampleSpread ?? 1;
+// target timezone for local day mapping
+const HEATMAP_TIMEZONE = 'Asia/Jerusalem';
+
+// returns { year, month, day, hour, minute, second, weekdayIndex }
+// weekdayIndex: 0 = Sunday, ... 6 = Saturday
+function tzPartsForISO(isoString) {
+    const date = new Date(isoString);
+    const f = new Intl.DateTimeFormat('en-US', {
+        timeZone: HEATMAP_TIMEZONE,
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false,
+        weekday: 'short'
+    });
+    const parts = f.formatToParts(date);
+    const map = {};
+    for (const p of parts) {
+        if (p.type !== 'literal') map[p.type] = p.value;
+    }
+    const year = Number(map.year);
+    const month = Number(map.month);
+    const day = Number(map.day);
+    const hour = Number(map.hour);
+    const minute = Number(map.minute || 0);
+    const second = Number(map.second || 0);
+    // weekday short e.g. Sun, Mon, Tue
+    const wk = (map.weekday || '').toLowerCase();
+    const wkMap = { 'sun':0, 'mon':1, 'tue':2, 'wed':3, 'thu':4, 'fri':5, 'sat':6 };
+    const weekdayIndex = wkMap[wk] !== undefined ? wkMap[wk] : (new Date(isoString)).getDay();
+    return { year, month, day, hour, minute, second, weekdayIndex };
+}
+
+// Map a sample (with hour/minute) to a slot index 0..slotsPerDay-1
+function mapSampleToSlot(slotsPerDay, sample) {
+    const slotsPerHour = slotsPerDay / 24;
+    const hour = Number(sample.hour || 0);
+    const minute = Number(sample.minute || 0);
+    const slotMinutes = 60 / slotsPerHour;
+    const intraHour = Math.floor(minute / slotMinutes);
+    let slot = (hour * slotsPerHour) + intraHour;
+    slot = Math.max(0, Math.min(slotsPerDay - 1, slot));
+    return slot;
+}
+
+// expose helpers for console debugging
+window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
+window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
+window.__HEATMAP_DEBUG.mapSampleToSlot = mapSampleToSlot;
+
+// ---- End helpers ----
+
 // =================================================================
 // 2. SUPABASE CLIENT
 // =================================================================
@@ -209,6 +271,37 @@ class DataProcessor {
         // Interpolate missing data
         const interpolated = this.interpolateData(aggregated, currentDay, currentSlot);
 
+        // add these debug logs/exports
+        try {
+            console.debug('[utils] ✅ Processed heatmap snapshot:', {
+                lotName: lotName,
+                totalRecords: rawData.length,
+                dayDistribution: dayDistribution,      // array of 7 counts
+                interpolated: interpolated,            // per-day interpolated arrays (if present)
+                rawSample: (aggregated || []).slice(0,10) // first 10 raw records for quick inspection
+            });
+
+            // human-friendly day names (index -> hebrew)
+            const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+            console.debug('[utils] 🔎 Day distribution detail:');
+            (dayDistribution || []).forEach((cnt, idx) => {
+                console.debug(`  ${idx} (${dayNames[idx]}): ${cnt} records`);
+            });
+
+            // expose a snapshot globally for ad-hoc console inspection
+            window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
+            window.__HEATMAP_DEBUG.latest = {
+                lotName,
+                rawData: aggregated,
+                interpolated,
+                dayDistribution,
+                totalRecords: rawData.length,
+                processedAt: new Date().toISOString()
+            };
+        } catch(e) {
+            console.warn('[utils] debug logging failed', e);
+        }
+
         return {
             lotName,
             rawData: aggregated,
@@ -313,4 +406,44 @@ window.getLocalDayHourMinute = getLocalDayHourMinute;
 window.getSlot = getSlot;
 window.getTimeLabel = getTimeLabel;
 
-console.log('✅ Utils loaded successfully');
+// Also expose a small debug hint so you can quickly inspect tz conversions from console:
+window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
+window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
+
+// --- After processing/interpolating per-day arrays, log highest slot seen per day for debugging ---
+/*
+  Insert this snippet after processed.interpolated is prepared (or at the end of your processing function)
+  so you can see where the latest samples map to.
+*/
+(function() {
+    try {
+        if (window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest) {
+            const processed = window.__HEATMAP_DEBUG.latest;
+            const slotsPerDay = (typeof CONFIG !== 'undefined' && CONFIG.SLOTS_PER_DAY) ? CONFIG.SLOTS_PER_DAY : (processed.interpolated && processed.interpolated[0] ? processed.interpolated[0].length : 24);
+            const maxSlots = (processed.rawData || []).map((dayArr, d) => {
+                // rawData likely holds raw records per day, but if structure differs use dayDistribution and processed.interpolated as fallback
+                const samples = dayArr || [];
+                let maxSlot = -1;
+                for (const s of samples) {
+                    // expect s.hour and s.minute to be present on samples after conversion
+                    const slot = mapSampleToSlot(slotsPerDay, s);
+                    if (slot > maxSlot) maxSlot = slot;
+                }
+                return maxSlot;
+            });
+            console.debug('[utils] 🔎 Max slot index seen per day (0..N-1):', maxSlots);
+            // human-friendly check: convert slot to time label for quick verification
+            function slotToTime(slot) {
+                if (slot < 0) return 'none';
+                const slotsPerHour = slotsPerDay / 24;
+                const hour = Math.floor(slot / slotsPerHour);
+                const intra = slot % slotsPerHour;
+                const minutes = Math.round(intra * (60 / slotsPerHour));
+                return `${hour.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}`;
+            }
+            console.debug('[utils] 🔎 Max slot human times per day:', maxSlots.map(s => slotToTime(s)));
+        }
+    } catch (e) {
+        console.debug('[utils] max-slot debug failed', e);
+    }
+})();

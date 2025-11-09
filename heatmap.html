@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/heatmap.css">
 </head>
+
 <body>
     <div class="container">
         <header class="heatmap-header">
@@ -15,7 +17,7 @@
                     ← חזרה לרשימת החניונים
                 </button>
             </div>
-            
+
             <div class="lot-info">
                 <h1 id="lot-title">טוען...</h1>
                 <div class="lot-meta">
@@ -29,24 +31,24 @@
             <div class="legend-section">
                 <h3>מקרא</h3>
                 <div class="legend-items">
-                    <span class="legend-item status-1">
-                        <span class="color-box"></span>
+                    <span class="legend-item">
+                        <span class="color-box status-1"></span>
                         פנוי
                     </span>
-                    <span class="legend-item status-2">
-                        <span class="color-box"></span>
+                    <span class="legend-item">
+                        <span class="color-box status-2"></span>
                         כמעט מלא
                     </span>
-                    <span class="legend-item status-3">
-                        <span class="color-box"></span>
+                    <span class="legend-item">
+                        <span class="color-box status-3"></span>
                         מלא
                     </span>
-                    <span class="legend-item status-4">
-                        <span class="color-box"></span>
+                    <span class="legend-item">
+                        <span class="color-box status-4"></span>
                         לא ידוע/כישלון באיסוף נתונים
                     </span>
-                    <span class="legend-item status-empty">
-                        <span class="color-box"></span>
+                    <span class="legend-item">
+                        <span class="color-box status-empty"></span>
                         ריק = אין נתונים
                     </span>
                 </div>
@@ -54,8 +56,15 @@
 
             <div class="heatmap-container" id="heatmap-container">
                 <div class="loading">
-                    <div class="spinner"></div>
-                    <p>טוען נתוני חניון...</p>
+                    <!-- lottie player: place your Lottie JSON at lotties/loader.json (or loader.lottie) -->
+                    <lottie-player class="lottie-player"
+                                   src="lotties/loader.json"
+                                   background="transparent"
+                                   speed="1"
+                                   loop
+                                   autoplay>
+                    </lottie-player>
+                     <p>טוען נתוני חניון...</p>
                 </div>
             </div>
 
@@ -83,8 +92,68 @@
         </footer>
     </div>
 
+    <!-- Lottie web component -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/utils.js"></script>
     <script src="js/heatmap-viewer.js"></script>
+    <script>
+    // lightweight runtime logging: fetch wrapper + DOM mutation observers for debugging duplicate rows
+    (function(){
+      const origFetch = window.fetch;
+      window.fetch = async function(...args){
+        try {
+          console.debug('[fetch] ->', args[0], args[1] || {});
+          const res = await origFetch.apply(this, args);
+          // clone and attempt to log body (safely)
+          res.clone().text().then(text => {
+            try { console.debug('[fetch] <-', args[0], JSON.parse(text)); }
+            catch(e) { console.debug('[fetch] <-', args[0], text.slice(0,500)); }
+          }).catch(e => console.debug('[fetch] clone read failed', e));
+          return res;
+        } catch(err) {
+          console.error('[fetch] error', args[0], err);
+          throw err;
+        }
+      };
+
+      function startObserver(selector, name){
+        const container = document.querySelector(selector);
+        if(!container) return console.debug('[observer] container not found:', selector);
+        const mo = new MutationObserver(mutations => {
+          for(const m of mutations){
+            for(const node of m.addedNodes){
+              if(node.nodeType === 1){
+                console.debug(`[observer:${name}] added node:`, node, 'snippet:', (node.outerHTML||'').slice(0,400));
+              }
+            }
+          }
+        });
+        mo.observe(container, { childList: true, subtree: true });
+        console.debug('[observer] started for', selector);
+      }
+
+      function ready(fn){
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+        else fn();
+      }
+
+      ready(() => {
+        startObserver('#heatmap-container', 'heatmap-container');
+        startObserver('.grid-container', 'grid-container');
+        console.debug('[debug] heatmap runtime logging active');
+      });
+
+      // helper callable from console: scans for obvious duplicate/day rows
+      window.__scanHeatmapForDuplicateRows = function(){
+        const grid = document.querySelector('.grid-container');
+        if(!grid) return console.debug('__scanHeatmapForDuplicateRows: grid not found');
+        const rows = Array.from(grid.children || []);
+        console.debug('__scanHeatmapForDuplicateRows rows count:', rows.length, rows.slice(0,20).map(r => r.getAttribute('data-day') || r.textContent.slice(0,60)));
+        return rows;
+      };
+    })();
+    </script>
 </body>
+
 </html>

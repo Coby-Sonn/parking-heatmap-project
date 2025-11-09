@@ -279,8 +279,19 @@ class HeatmapViewer {
             dayLabel.textContent = CONFIG.DAYS[d];
             grid.appendChild(dayLabel);
             
-            // Data cells for this day
-            const dayData = this.heatmapData.interpolated[d] || Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            // Determine if we should use interpolated data or render as empty based on sample count
+            const minSamples = (window.__HEATMAP_CONFIG && window.__HEATMAP_CONFIG.minSamplesToInterpolate) || 3;
+            const dayCount = (this.heatmapData && Array.isArray(this.heatmapData.dayDistribution))
+                ? this.heatmapData.dayDistribution[d] : null;
+            let dayData;
+            if (dayCount !== null && dayCount < minSamples) {
+                console.warn(`[render] ⚠️ Skipping interpolation for day ${d} (${CONFIG.DAYS[d]}): only ${dayCount} samples (< ${minSamples}) — rendering as empty`);
+                dayData = Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            } else {
+                dayData = (this.heatmapData && Array.isArray(this.heatmapData.interpolated) && Array.isArray(this.heatmapData.interpolated[d]))
+                    ? this.heatmapData.interpolated[d]
+                    : Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            }
             
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
                 const value = dayData[s];
@@ -294,6 +305,42 @@ class HeatmapViewer {
                 cell.title = `${this.lotName} - ${dayName} ${timeLabel} - ${statusText}`;
                 
                 grid.appendChild(cell);
+            }
+
+            // Debug logging for rendered rows
+            {
+                try {
+                    const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+                    // after attaching row for day `d`:
+                    console.debug(`[render] Day row created -> index:${d} (${dayNames[d]})`, {
+                        // note: grid.lastChild is the last appended cell; we include a short debug snapshot instead
+                        dataForDay: dayData,
+                        rawCount: (window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest && window.__HEATMAP_DEBUG.latest.dayDistribution)
+                                   ? window.__HEATMAP_DEBUG.latest.dayDistribution[d]
+                                   : 'unknown'
+                    });
+
+                    // count colored cells in the row we just appended by checking the last (24) children
+                    const children = Array.from(grid.children);
+                    const startIndex = Math.max(0, children.length - CONFIG.SLOTS_PER_DAY);
+                    const recentCells = children.slice(startIndex);
+                    const coloredCellsCount = recentCells.filter(el => el.classList && el.classList.contains && (
+                        el.classList.contains('status-1') ||
+                        el.classList.contains('status-2') ||
+                        el.classList.contains('status-3') ||
+                        el.classList.contains('status-4')
+                    )).length;
+                    console.debug(`[render] Day ${d} rendered colored cells:`, coloredCellsCount);
+
+                    // quick sanity warning: if rawCount is very small but row has many colored cells, log a warning
+                    const rawCount = window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest && window.__HEATMAP_DEBUG.latest.dayDistribution
+                                     ? window.__HEATMAP_DEBUG.latest.dayDistribution[d] : null;
+                    if (rawCount !== null && rawCount <= 2 && coloredCellsCount > 6) {
+                        console.warn(`[render][warning] Day ${d} (${dayNames[d]}) has only ${rawCount} raw records but rendered ${coloredCellsCount} colored cells — investigate interpolation/mapping.`);
+                    }
+                } catch(e) {
+                    console.debug('[render] debug logging failed', e);
+                }
             }
         }
     }
@@ -373,8 +420,19 @@ class HeatmapViewer {
             dayLabel.textContent = CONFIG.DAYS[d];
             grid.appendChild(dayLabel);
             
-            // Data cells for this day
-            const dayData = heatmapData.interpolated[d] || Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            // Determine if we should use interpolated data or render as empty based on sample count
+            const minSamples = (window.__HEATMAP_CONFIG && window.__HEATMAP_CONFIG.minSamplesToInterpolate) || 3;
+            const dayCount = (heatmapData && Array.isArray(heatmapData.dayDistribution))
+                ? heatmapData.dayDistribution[d] : null;
+            let dayData;
+            if (dayCount !== null && dayCount < minSamples) {
+                console.warn(`[render] ⚠️ Skipping interpolation for day ${d} (${CONFIG.DAYS[d]}) in comparison view: only ${dayCount} samples (< ${minSamples}) — rendering as empty`);
+                dayData = Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            } else {
+                dayData = (heatmapData && Array.isArray(heatmapData.interpolated) && Array.isArray(heatmapData.interpolated[d]))
+                    ? heatmapData.interpolated[d]
+                    : Array(CONFIG.SLOTS_PER_DAY).fill(0);
+            }
             
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
                 const value = dayData[s];
@@ -388,6 +446,24 @@ class HeatmapViewer {
                 cell.title = `${lotName} - ${dayName} ${timeLabel} - ${statusText}`;
                 
                 grid.appendChild(cell);
+            }
+
+            // Optional debug: log per-row summary in comparison view
+            try {
+                const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+                const children = Array.from(grid.children);
+                const startIndex = Math.max(0, children.length - CONFIG.SLOTS_PER_DAY);
+                const recentCells = children.slice(startIndex);
+                const coloredCellsCount = recentCells.filter(el => el.classList && el.classList.contains && (
+                    el.classList.contains('status-1') ||
+                    el.classList.contains('status-2') ||
+                    el.classList.contains('status-3') ||
+                    el.classList.contains('status-4')
+                )).length;
+                const rawCount = heatmapData && heatmapData.dayDistribution ? heatmapData.dayDistribution[d] : 'unknown';
+                console.debug(`[render][compare] Day ${d} (${dayNames[d]}): raw=${rawCount} | colored=${coloredCellsCount}`);
+            } catch(e) {
+                console.debug('[render][compare] debug logging failed', e);
             }
         }
     }
@@ -517,3 +593,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize heatmap viewer
     new HeatmapViewer();
 });
+
+// Add a global helper to validate the rendered grid vs the processed distribution:
+try {
+    window.__validateHeatmapRows = function() {
+        const grid = document.querySelector('.grid-container');
+        if (!grid) return console.debug('__validateHeatmapRows: .grid-container not found');
+        const rows = Array.from(grid.children);
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const processed = window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest;
+        rows.forEach((rowEl, idx) => {
+            const colored = rowEl.querySelectorAll ? rowEl.querySelectorAll('.heatmap-cell.status-1, .heatmap-cell.status-2, .heatmap-cell.status-3, .heatmap-cell.status-4').length : 0;
+            const processedCount = processed && processed.dayDistribution ? processed.dayDistribution[idx] : 'unknown';
+            console.debug(`Row ${idx} (${dayNames[idx]}): coloredCells=${colored} | processedRaw=${processedCount}`);
+            if (processedCount !== 'unknown' && processedCount <= 2 && colored > 6) {
+                console.warn(`→ Suspicious: day ${idx} (${dayNames[idx]}) has ${processedCount} raw records but ${colored} colored cells rendered.`);
+            }
+        });
+        return { rowsCount: rows.length };
+    };
+} catch(e) {
+    console.debug('Could not install __validateHeatmapRows helper', e);
+}
