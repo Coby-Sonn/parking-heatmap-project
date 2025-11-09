@@ -1,5 +1,5 @@
 // =================================================================
-// 1. CONFIGURATION 
+// 1. CONFIGURATION (No changes)
 // =================================================================
 
 const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co'; 
@@ -11,14 +11,14 @@ const SLOTS_PER_DAY = 72;
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
 
 // =================================================================
-// 2. HELPER FUNCTIONS (Critical change to use UTC time)
+// 2. HELPER FUNCTIONS (No changes)
 // =================================================================
 
 /**
  * Calculates the index of the 20-minute time slot (0 to 71) using UTC time.
  */
 function getUTCTimeSlotIndex(date) {
-    // *** FIX: Using UTC hours/minutes for slot calculation ***
+    // Using UTC hours/minutes for slot calculation
     const hours = date.getUTCHours();
     const minutes = date.getUTCMinutes();
     return Math.floor(((hours * 60) + minutes) / 20);
@@ -41,17 +41,17 @@ async function loadAndProcessData() {
 
     HEATMAP_CONTAINER.innerHTML = '<p>טוען נתוני חניה...</p>';
     
-    // --- 1. Get Current Day and Slot for Interpolation Limit ---
+    // --- Current Day and Slot for Interpolation Limit ---
     const now = new Date();
     const currentDay = now.getDay();
-    // This must remain based on LOCAL TIME to know which slots have passed for the viewer.
     const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20);
     // -----------------------------------------------------------
 
     // 1. Fetch Data
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('checked_at, lot_name, api_status_code')
+        // *** CRITICAL FIX: Explicitly request 'checked_at' as a string/text type (::text) ***
+        .select('checked_at::text, lot_name, api_status_code')
         .order('checked_at', { ascending: true }); 
 
     if (error) {
@@ -70,9 +70,10 @@ async function loadAndProcessData() {
     const uniqueLots = new Set();
     
     data.forEach(row => {
+        // *** FIX: Instantiate Date object using the fetched text string ***
         const date = new Date(row.checked_at);
         
-        // *** CRITICAL FIX: Use UTC Day for consistent indexing (0=Sunday UTC) ***
+        // Use UTC Day for consistent indexing (0=Sunday UTC)
         const dayOfWeek = date.getUTCDay(); 
         const timeSlot = getUTCTimeSlotIndex(date); // Now using UTC hours/minutes
         
@@ -93,8 +94,6 @@ async function loadAndProcessData() {
     });
 
     // 3. Interpolate the data to fill in gaps and cap the future slots
-    // NOTE: Interpolation still uses local 'currentDay' and 'currentSlot' 
-    // to determine the display cutoff for the viewer.
     const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
     // 4. Sort lot names alphabetically
