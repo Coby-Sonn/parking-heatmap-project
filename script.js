@@ -7,16 +7,20 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const TABLE_NAME = 'parking_consistency_data';
 const SLOTS_PER_DAY = 72;
-// DAYS: [Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6)]. Corrected Hebrew names order:
+// DAYS: [Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6)].
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
 
 // =================================================================
-// 2. HELPER FUNCTIONS (No change)
+// 2. HELPER FUNCTIONS (Critical change to use UTC time)
 // =================================================================
 
-function getTimeSlotIndex(date) {
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+/**
+ * Calculates the index of the 20-minute time slot (0 to 71) using UTC time.
+ */
+function getUTCTimeSlotIndex(date) {
+    // *** FIX: Using UTC hours/minutes for slot calculation ***
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
     return Math.floor(((hours * 60) + minutes) / 20);
 }
 
@@ -40,7 +44,7 @@ async function loadAndProcessData() {
     // --- 1. Get Current Day and Slot for Interpolation Limit ---
     const now = new Date();
     const currentDay = now.getDay();
-    // Reverting to simpler index calculation and ceiling for the current slot to ensure current data is counted.
+    // This must remain based on LOCAL TIME to know which slots have passed for the viewer.
     const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20);
     // -----------------------------------------------------------
 
@@ -64,20 +68,16 @@ async function loadAndProcessData() {
     // 2. Aggregate Data into a structure of recorded points
     const aggregatedData = {};
     const uniqueLots = new Set();
-    let sundayDataFound = false;
-
+    
     data.forEach(row => {
-        // IMPORTANT: Date objects instantiated from Supabase UTC timestamps 
-        // are automatically converted to the local browser's time zone when using getDay().
         const date = new Date(row.checked_at);
-        const dayOfWeek = date.getDay(); // 0 for Sunday
-        const timeSlot = getTimeSlotIndex(date);
+        
+        // *** CRITICAL FIX: Use UTC Day for consistent indexing (0=Sunday UTC) ***
+        const dayOfWeek = date.getUTCDay(); 
+        const timeSlot = getUTCTimeSlotIndex(date); // Now using UTC hours/minutes
+        
         const lotName = row.lot_name;
         const code = row.api_status_code; 
-        
-        if (dayOfWeek === 0) {
-             sundayDataFound = true;
-        }
 
         uniqueLots.add(lotName);
 
@@ -91,10 +91,10 @@ async function loadAndProcessData() {
         // Store the status code at the exact 20-minute slot
         aggregatedData[lotName][dayOfWeek][timeSlot] = code;
     });
-    
-    console.log(`Debug: Sunday data found in aggregation: ${sundayDataFound}`);
 
     // 3. Interpolate the data to fill in gaps and cap the future slots
+    // NOTE: Interpolation still uses local 'currentDay' and 'currentSlot' 
+    // to determine the display cutoff for the viewer.
     const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
     // 4. Sort lot names alphabetically
@@ -124,13 +124,12 @@ function interpolateData(data, lots, currentDay, currentSlot) {
                 // Iterate through all 72 slots for the day
                 for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
                     
-                    // --- TIME GATE FIX ---
-                    // If we are on the current day, any slot *after* the current slot must remain 0 (white).
+                    // --- TIME GATE CHECK (Uses LOCAL day/time for display cutoff) ---
                     if (day === currentDay && slot >= currentSlot) {
                         interpolated[lotName][day][slot] = 0; 
                         continue; 
                     }
-                    // ---------------------
+                    // -------------------------------------------------------------
 
                     const currentStatus = dayData[slot];
 
@@ -147,7 +146,6 @@ function interpolateData(data, lots, currentDay, currentSlot) {
             }
         }
     }
-    console.log('--- Interpolation Complete: Future slots reset to 0. ---');
     return interpolated;
 }
 
@@ -188,13 +186,11 @@ function renderHeatmap(data, lots) {
     lots.forEach(lotName => {
         const lotDiv = document.createElement('div');
         lotDiv.className = 'lot-heatmap';
-        // Title only
         lotDiv.innerHTML = `<h2>${lotName}</h2>`;
 
         // --- Heatmap Grid for this Lot (Days as Rows, Time as Columns) ---
         const gridDiv = document.createElement('div');
         gridDiv.className = 'grid-container';
-        // 73 columns: 1 (Day Label) + 72 (20-min slots)
         gridDiv.style.gridTemplateColumns = `60px repeat(${SLOTS_PER_DAY}, 1fr)`; 
         
         // 1. Time Slot Header Row (73 cells)
