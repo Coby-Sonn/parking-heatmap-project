@@ -11,7 +11,7 @@ const SLOTS_PER_DAY = 72;
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
 
 // =================================================================
-// 2. HELPER FUNCTIONS (Using UTC time)
+// 2. HELPER FUNCTIONS (Using UTC time for aggregation keys)
 // =================================================================
 
 /**
@@ -40,16 +40,16 @@ async function loadAndProcessData() {
 
     HEATMAP_CONTAINER.innerHTML = '<p>טוען נתוני חניה...</p>';
     
-    // --- Current Day and Slot for Interpolation Limit (Local Time) ---
+    // --- 1. Current Day and Slot for Interpolation Limit (Local Time) ---
     const now = new Date();
-    const currentDay = now.getDay(); // Local Day
-    const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20); // Local Slot
+    const currentDay = now.getDay(); // Local Day (0-6)
+    const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20); // Local Slot (0-72)
     // -----------------------------------------------------------
 
     // 1. Fetch Data
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        // *** FIX: Removed the ::text cast to ensure the full timestampz object is returned ***
+        // Fetching without the ::text cast to allow JS Date to parse the timestampz correctly
         .select('checked_at, lot_name, api_status_code')
         .order('checked_at', { ascending: true }); 
 
@@ -65,14 +65,16 @@ async function loadAndProcessData() {
     }
 
     // 2. Aggregate Data into a structure of recorded points
+    // We use a Map/Object where keys are lotName, and values are arrays [Day0, Day1, ..., Day6]
+    // where each DayX is an array of 72 slots.
     const aggregatedData = {};
     const uniqueLots = new Set();
     
     data.forEach(row => {
         const date = new Date(row.checked_at);
         
-        // *** CRITICAL: Use UTC Day for reliable indexing ***
-        const dayOfWeek = date.getUTCDay(); // 0 (Sunday) to 6 (Saturday) UTC
+        // Use UTC Day (0=Sun, 6=Sat) for reliable indexing, ignoring local timezone shifts.
+        const dayOfWeek = date.getUTCDay(); 
         const timeSlot = getUTCTimeSlotIndex(date); 
         
         const lotName = row.lot_name;
@@ -81,17 +83,15 @@ async function loadAndProcessData() {
         uniqueLots.add(lotName);
 
         if (!aggregatedData[lotName]) {
-            aggregatedData[lotName] = {};
-        }
-        if (!aggregatedData[lotName][dayOfWeek]) {
-            aggregatedData[lotName][dayOfWeek] = Array(SLOTS_PER_DAY).fill(0); 
+            // Initialize the lot with 7 arrays (one for each day, 0-6)
+            aggregatedData[lotName] = Array(DAYS.length).fill(0).map(() => Array(SLOTS_PER_DAY).fill(0));
         }
 
+        // Store the status code directly into the UTC-indexed array
         aggregatedData[lotName][dayOfWeek][timeSlot] = code;
     });
 
     // 3. Interpolate the data to fill in gaps and cap the future slots
-    // Interpolation still uses local 'currentDay' and 'currentSlot' for the display cutoff.
     const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
     // 4. Sort lot names alphabetically
@@ -111,9 +111,15 @@ function interpolateData(data, lots, currentDay, currentSlot) {
     for (const lotName of lots) {
         interpolated[lotName] = {};
         
+        // Iterate through all 7 days (0=Sunday UTC)
         for (let day = 0; day < DAYS.length; day++) {
-            const dayData = data[lotName][day];
-
+            const dayData = data[lotName][day]; // This is the UTC day data
+            
+            // Crucial: We need to determine if this UTC day corresponds to the *current local day*
+            // This is complex due to timezone shifts. The safest assumption is:
+            // If the local day index matches the UTC index, apply the current time limit.
+            const isTodayLocal = (day === currentDay);
+            
             if (dayData) {
                 interpolated[lotName][day] = [...dayData]; 
                 let lastStatus = 0;
@@ -122,8 +128,8 @@ function interpolateData(data, lots, currentDay, currentSlot) {
                 for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
                     
                     // --- TIME GATE CHECK (Uses LOCAL day/time for display cutoff) ---
-                    // This logic MUST check the LOCAL day/slot against the current day/slot.
-                    if (day === currentDay && slot >= currentSlot) {
+                    // Only apply the cutoff if the current loop day matches the LOCAL day.
+                    if (isTodayLocal && slot >= currentSlot) {
                         interpolated[lotName][day][slot] = 0; 
                         continue; 
                     }
