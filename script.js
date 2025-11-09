@@ -28,16 +28,13 @@ const tzFormatter = new Intl.DateTimeFormat('en-GB', {
  * Returns { dayIndex: 0..6 (Sun..Sat), hour: 0..23, minute: 0..59 }.
  */
 function getIsraelParts(date) {
-  const parts = tzFormatter.formatToParts(date);
-  const get = (t) => parts.find(p => p.type === t)?.value;
+  // Convert UTC -> Israel local using toLocaleString()
+  const localString = date.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' });
+  const local = new Date(localString);
 
-  const weekday = (get('weekday') || '').toLowerCase().slice(0, 3); // "sun".."sat"
-  const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-  const dayIndex = dayMap[weekday];
-
-  // hour/minute are zero-padded strings in h23 (00..23)
-  const hour = parseInt(get('hour') || '0', 10);
-  const minute = parseInt(get('minute') || '0', 10);
+  const dayIndex = local.getDay(); // 0 = Sunday (Israel local), 6 = Saturday
+  const hour = local.getHours();
+  const minute = local.getMinutes();
 
   return { dayIndex, hour, minute };
 }
