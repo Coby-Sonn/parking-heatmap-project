@@ -2,49 +2,57 @@
 // 1. CONFIGURATION 
 // =================================================================
 
-const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNobXRreHNocnNya3dvdmpva3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDQ4MjAsImV4cCI6MjA3NzgyMDgyMH0.oENVmyU00Uy2N6gxir54yu4T0Jw_Jay2tITeQW3QfqE'; 
+const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co';
+const SUPABASE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNobXRreHNocnNya3dvdmpva3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDQ4MjAsImV4cCI6MjA3NzgyMDgyMH0.oENVmyU00Uy2N6gxir54yu4T0Jw_Jay2tITeQW3QfqE';
 
 const TABLE_NAME = 'parking_consistency_data';
-const SLOTS_PER_DAY = 72; // 72 slots of 20 minutes
-const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
-const TZ = 'Asia/Jerusalem'; // <- authoritative time zone for everything
-
-// Prebuild a formatter for Israel time
-const tzFormatter = new Intl.DateTimeFormat('en-GB', {
-  timeZone: TZ,
-  weekday: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23'
-});
+const SLOTS_PER_DAY = 72; // 72 slots of 20 minutes each
+const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+const TZ = 'Asia/Jerusalem';
 
 // =================================================================
-// 2. HELPER FUNCTIONS (Israel local time via Intl)
+// 2. HELPER FUNCTIONS (Israel Local Time, DST-safe)
 // =================================================================
 
 /**
- * Extracts Israel-local weekday, hour, minute (no manual offset math).
- * Returns { dayIndex: 0..6 (Sun..Sat), hour: 0..23, minute: 0..59 }.
+ * Extracts Israel-local day/hour/minute safely with Intl API.
+ * This avoids all iOS/WebKit date parsing issues.
  */
 function getIsraelParts(date) {
-  // Convert UTC -> Israel local using toLocaleString()
-  const localString = date.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' });
-  const local = new Date(localString);
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
 
-  const dayIndex = local.getDay(); // 0 = Sunday (Israel local), 6 = Saturday
-  const hour = local.getHours();
-  const minute = local.getMinutes();
+  const weekday = fmt.find((p) => p.type === 'weekday')?.value?.toLowerCase() || '';
+  const hour = parseInt(fmt.find((p) => p.type === 'hour')?.value || '0', 10);
+  const minute = parseInt(fmt.find((p) => p.type === 'minute')?.value || '0', 10);
 
+  // Map covers abbreviations and full words
+  const map = {
+    sun: 0, sunday: 0,
+    mon: 1, monday: 1,
+    tue: 2, tuesday: 2,
+    wed: 3, wednesday: 3,
+    thu: 4, thursday: 4,
+    fri: 5, friday: 5,
+    sat: 6, saturday: 6,
+  };
+  const key = Object.keys(map).find((k) => weekday.startsWith(k)) || 'sun';
+  const dayIndex = map[key];
   return { dayIndex, hour, minute };
 }
 
-/** Returns the 20-min slot index (0..71) from hour/minute. */
+/** Convert hour/minute to a 20-min slot index (0–71). */
 function slotIndexFromHM(hour, minute) {
   return Math.floor(((hour * 60) + minute) / 20);
 }
 
-/** HH:MM label for a slot (pure display). */
+/** Human-readable time for tooltips. */
 function getTimeString(slot) {
   const totalMinutes = slot * 20;
   const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
@@ -53,119 +61,109 @@ function getTimeString(slot) {
 }
 
 // =================================================================
-// 3. DATA FETCHING AND PROCESSING 
+// 3. DATA FETCHING AND PROCESSING
 // =================================================================
 
 async function loadAndProcessData() {
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const HEATMAP_CONTAINER = document.getElementById('heatmap-container');
-
   HEATMAP_CONTAINER.innerHTML = '<p>טוען נתוני חניה...</p>';
 
-  // --- Current "today" and slot in Israel time ---
+  // --- Current day & slot in Israel local time ---
   const now = new Date();
   const { dayIndex: currentDay, hour: curH, minute: curM } = getIsraelParts(now);
-  const currentSlot = Math.ceil(((curH * 60) + curM) / 20); // cutoff
+  const currentSlot = Math.ceil(((curH * 60) + curM) / 20);
 
-  // 1) Fetch
+  // 1. Fetch
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('checked_at, lot_name, api_status_code')
     .order('checked_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching data:', error);
-    HEATMAP_CONTAINER.innerHTML = `<p style="color: red;">שגיאה בטעינת נתונים: ${error.message}. בדוק את הקונסול.</p>`;
+    HEATMAP_CONTAINER.innerHTML = `<p style="color:red">שגיאה: ${error.message}</p>`;
+    console.error(error);
     return;
   }
 
   if (!data || data.length === 0) {
-    HEATMAP_CONTAINER.innerHTML = `<p>לא נמצאו נתונים בטבלה. ודא נכונות הטבלה והמפתח.</p>`;
+    HEATMAP_CONTAINER.innerHTML = `<p>לא נמצאו נתונים בטבלה.</p>`;
     return;
   }
 
-  // 2) Aggregate into Israel-local day/slot buckets
+  // 2. Aggregate into Israel-local buckets
   const aggregatedData = {};
   const uniqueLots = new Set();
 
   for (const row of data) {
-    const utcDate = new Date(row.checked_at); // this is in UTC from DB
-    const { dayIndex, hour, minute } = getIsraelParts(utcDate); // convert via TZ
-    const timeSlot = slotIndexFromHM(hour, minute);
+    const utcDate = new Date(row.checked_at);
+    const { dayIndex, hour, minute } = getIsraelParts(utcDate);
+    const slot = slotIndexFromHM(hour, minute);
 
     const lotName = row.lot_name;
     const code = row.api_status_code;
 
     uniqueLots.add(lotName);
-
     if (!aggregatedData[lotName]) {
-      aggregatedData[lotName] = Array(DAYS.length).fill(0).map(() => Array(SLOTS_PER_DAY).fill(0));
+      aggregatedData[lotName] = Array(DAYS.length)
+        .fill(0)
+        .map(() => Array(SLOTS_PER_DAY).fill(0));
     }
 
-    aggregatedData[lotName][dayIndex][timeSlot] = code;
+    aggregatedData[lotName][dayIndex][slot] = code;
   }
 
-  // 3) Interpolate (fill gaps) but never beyond "now" in Israel time
-  const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
+  // 3. Interpolate (fill gaps up to current local time)
+  const interpolated = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
-  // 4. Diagnostics: count how many rows fell into each day for each lot
-  const diagnosticDiv = document.createElement('div');
-  diagnosticDiv.style.fontFamily = 'monospace';
-  diagnosticDiv.style.direction = 'ltr';
-  diagnosticDiv.innerHTML = '<h3>DEBUG BUCKET COUNTS (Israel Time)</h3><pre>';
-
-  for (const lotName of uniqueLots) {
-    diagnosticDiv.innerHTML += `\n${lotName}:\n`;
+  // 4. Debug — print bucket counts visibly
+  const diag = document.createElement('div');
+  diag.style.fontFamily = 'monospace';
+  diag.style.direction = 'ltr';
+  diag.innerHTML = '<h3>DEBUG BUCKET COUNTS (Israel Time)</h3><pre>';
+  for (const lot of uniqueLots) {
+    diag.innerHTML += `\n${lot}:\n`;
     for (let d = 0; d < DAYS.length; d++) {
-      const dayArr = aggregatedData[lotName][d] || [];
-      const nonzero = dayArr.filter(x => x > 0).length;
-      diagnosticDiv.innerHTML += `  ${DAYS[d]}: ${nonzero} slots\n`;
+      const count = (aggregatedData[lot][d] || []).filter(x => x > 0).length;
+      diag.innerHTML += `  ${DAYS[d]}: ${count} slots\n`;
     }
   }
-  diagnosticDiv.innerHTML += '</pre><hr>';
-  document.body.prepend(diagnosticDiv);
-  
-  // 5. Sort & Render
+  diag.innerHTML += '</pre><hr>';
+  document.body.prepend(diag);
+
+  // 5. Sort & render
   const sortedLots = Array.from(uniqueLots).sort();
-  renderHeatmap(interpolatedData, sortedLots);
+  renderHeatmap(interpolated, sortedLots);
 }
 
 /**
- * Fills missing 20-min slots with last known status, capped at "now" (Israel time).
+ * Fill missing 20-min slots with last known status (no future slots).
  */
 function interpolateData(data, lots, currentDay, currentSlot) {
   const interpolated = {};
-
-  for (const lotName of lots) {
-    interpolated[lotName] = {};
-
+  for (const lot of lots) {
+    interpolated[lot] = {};
     for (let day = 0; day < DAYS.length; day++) {
-      const dayData = data[lotName][day];
-      const isTodayIL = (day === currentDay);
+      const dayData = data[lot][day];
+      const isToday = (day === currentDay);
 
       if (dayData) {
-        interpolated[lotName][day] = [...dayData];
+        interpolated[lot][day] = [...dayData];
         let lastStatus = 0;
-
         for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
-          if (isTodayIL && slot >= currentSlot) {
-            interpolated[lotName][day][slot] = 0; // future today -> empty
+          if (isToday && slot >= currentSlot) {
+            interpolated[lot][day][slot] = 0;
             continue;
           }
-
           const s = dayData[slot];
-          if (s > 0) {
-            lastStatus = s;
-          } else if (lastStatus > 0) {
-            interpolated[lotName][day][slot] = lastStatus;
-          }
+          if (s > 0) lastStatus = s;
+          else if (lastStatus > 0) interpolated[lot][day][slot] = lastStatus;
         }
       } else {
-        interpolated[lotName][day] = Array(SLOTS_PER_DAY).fill(0);
+        interpolated[lot][day] = Array(SLOTS_PER_DAY).fill(0);
       }
     }
   }
-
   return interpolated;
 }
 
@@ -185,10 +183,8 @@ function getStatusText(code) {
 }
 
 function renderHeatmap(data, lots) {
-  const HEATMAP_CONTAINER = document.getElementById('heatmap-container'); 
-  HEATMAP_CONTAINER.innerHTML = '';
-
-  const legend = `
+  const HEATMAP_CONTAINER = document.getElementById('heatmap-container');
+  HEATMAP_CONTAINER.innerHTML = `
     <div class="legend">
       <h3>מקרא</h3>
       <span class="status-1">1=פנוי</span>
@@ -199,52 +195,41 @@ function renderHeatmap(data, lots) {
     </div>
     <hr>
   `;
-  HEATMAP_CONTAINER.innerHTML = legend;
 
-  lots.forEach(lotName => {
+  lots.forEach(lot => {
     const lotDiv = document.createElement('div');
     lotDiv.className = 'lot-heatmap';
-    lotDiv.innerHTML = `<h2>${lotName}</h2>`;
+    lotDiv.innerHTML = `<h2>${lot}</h2>`;
 
-    const gridDiv = document.createElement('div');
-    gridDiv.className = 'grid-container';
-    gridDiv.style.gridTemplateColumns = `60px repeat(${SLOTS_PER_DAY}, 1fr)`;
+    const grid = document.createElement('div');
+    grid.className = 'grid-container';
+    grid.style.gridTemplateColumns = `60px repeat(${SLOTS_PER_DAY}, 1fr)`;
 
-    // Time header (labels every 2 hours)
-    gridDiv.innerHTML += `<div class="time-label time-label-header">יום / שעה</div>`;
+    grid.innerHTML += `<div class="time-label time-label-header">יום / שעה</div>`;
     for (let slot = 0; slot < SLOTS_PER_DAY; slot += 6) {
-      const timeString = getTimeString(slot);
+      const t = getTimeString(slot);
       const span = document.createElement('span');
       span.className = 'time-label time-label-header';
       span.style.gridColumn = `span 6`;
-      span.textContent = timeString;
-      gridDiv.appendChild(span);
+      span.textContent = t;
+      grid.appendChild(span);
     }
 
-    // 7 rows: Sun..Sat (Israel-local indexes already)
-    for (let day = 0; day < DAYS.length; day++) {
-      const dayName = DAYS[day];
-      const dayData = data[lotName][day] || Array(SLOTS_PER_DAY).fill(0);
-
-      // Row label
-      gridDiv.innerHTML += `<div class="time-label">${dayName}</div>`;
-
-      // 24h * 3 slots/hour = 72 cells
+    for (let d = 0; d < DAYS.length; d++) {
+      const dayName = DAYS[d];
+      const arr = data[lot][d] || Array(SLOTS_PER_DAY).fill(0);
+      grid.innerHTML += `<div class="time-label">${dayName}</div>`;
       for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
-        const status = dayData[slot];
-        const statusText = getStatusText(status);
-        const timeString = getTimeString(slot);
-
-        let className = `status-${status}`;
-        if (status === 0) className = 'status-empty';
-
-        gridDiv.innerHTML += `
-          <div class="heatmap-cell ${className}"
-               title="${lotName} - ${dayName} ${timeString} - סטטוס: ${statusText}"></div>`;
+        const s = arr[slot];
+        const statusText = getStatusText(s);
+        const t = getTimeString(slot);
+        let className = s === 0 ? 'status-empty' : `status-${s}`;
+        grid.innerHTML += `<div class="heatmap-cell ${className}" 
+          title="${lot} - ${dayName} ${t} - סטטוס: ${statusText}"></div>`;
       }
     }
 
-    lotDiv.appendChild(gridDiv);
+    lotDiv.appendChild(grid);
     HEATMAP_CONTAINER.appendChild(lotDiv);
   });
 }
@@ -253,6 +238,4 @@ function renderHeatmap(data, lots) {
 // 5. INITIALIZATION
 // =================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadAndProcessData();
-});
+document.addEventListener('DOMContentLoaded', () => loadAndProcessData());
