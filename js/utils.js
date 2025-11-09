@@ -92,16 +92,35 @@ function getSupabaseClient() {
 // 3. TIMEZONE UTILITIES
 // =================================================================
 function getLocalDayHourMinute(utcString) {
-    const d = new Date(utcString);
+    // 🔧 FIX: Use proper timezone conversion instead of hard-coded offset
+    // This automatically handles daylight saving time transitions
+    const utcDate = new Date(utcString);
     
-    // Simple UTC+2 offset for Israel
-    const israelOffset = -120; // UTC+2 in minutes
-    const localTime = new Date(d.getTime() - (israelOffset * 60 * 1000));
-
+    // Use Intl.DateTimeFormat to properly convert to Israel timezone
+    const israelDateTime = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).formatToParts(utcDate);
+    
+    const dateMap = {};
+    israelDateTime.forEach(part => {
+        if (part.type !== 'literal') {
+            dateMap[part.type] = parseInt(part.value);
+        }
+    });
+    
+    // Create a date in Israel timezone to get the correct day of week
+    const israelDate = new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute);
+    
     return {
-        day: localTime.getDay(),
-        hour: localTime.getHours(),
-        minute: localTime.getMinutes(),
+        day: israelDate.getDay(),
+        hour: dateMap.hour,
+        minute: dateMap.minute,
     };
 }
 
@@ -226,9 +245,21 @@ class DataProcessor {
     processHeatmapData(rawData, lotName) {
         console.log(`🔄 Processing ${rawData.length} records for heatmap...`);
         
+        // 🔧 FIX: Use consistent timezone handling - local Israel time for both current time and data processing
         const now = new Date();
-        const currentDay = now.getDay();
-        const currentSlot = getSlot(now.getHours(), now.getMinutes());
+        const nowLocal = getLocalDayHourMinute(now.toISOString());
+        const currentDay = nowLocal.day;  // Use LOCAL day instead of UTC
+        const currentSlot = getSlot(nowLocal.hour, nowLocal.minute);  // Use LOCAL time
+        
+        // 🔍 DEBUG: Log current day/slot calculation for validation
+        console.log(`🔍 [DEBUG] Fixed timezone handling:`, {
+            utcTime: now.toISOString(),
+            utcDay: now.getDay(),
+            fixedLocalDay: currentDay,
+            fixedLocalSlot: currentSlot,
+            localTime: `${nowLocal.hour.toString().padStart(2,'0')}:${nowLocal.minute.toString().padStart(2,'0')}`,
+            dayNames: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+        });
 
         // Initialize aggregated data structure
         const aggregated = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
@@ -259,6 +290,8 @@ class DataProcessor {
             // Store the status code
             if (slot >= 0 && slot < CONFIG.SLOTS_PER_DAY) {
                 aggregated[day][slot] = row.api_status_code;
+                
+                // Data successfully stored in aggregated array
             }
         });
 
@@ -324,8 +357,9 @@ class DataProcessor {
             let lastValidValue = 0;
             
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
-                // Don't interpolate future data
-                if (d === currentDay && s >= currentSlot) {
+                // Don't interpolate future data - use consistent timezone comparison
+                // Fixed: use > instead of >= to include current slot data
+                if (d === currentDay && s > currentSlot) {
                     interpolated[d][s] = 0;
                     continue;
                 }
