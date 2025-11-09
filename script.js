@@ -1,5 +1,5 @@
 // =================================================================
-// 1. CONFIGURATION (No changes here, keys are defined)
+// 1. CONFIGURATION 
 // =================================================================
 
 const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co'; 
@@ -7,11 +7,11 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const TABLE_NAME = 'parking_consistency_data';
 const SLOTS_PER_DAY = 72;
-// DAYS: [Sun, Mon, Tue, Wed, Thu, Fri, Sat]. Date.getDay() returns 0 for Sunday.
+// DAYS: [Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6)]. Corrected Hebrew names order:
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
 
 // =================================================================
-// 2. HELPER FUNCTIONS (No changes here)
+// 2. HELPER FUNCTIONS (No change)
 // =================================================================
 
 function getTimeSlotIndex(date) {
@@ -40,11 +40,7 @@ async function loadAndProcessData() {
     // --- 1. Get Current Day and Slot for Interpolation Limit ---
     const now = new Date();
     const currentDay = now.getDay();
-    // Use Math.ceil on the raw minutes/20 so we include the fractional part of the
-    // current 20-minute interval. Calling Math.ceil on getTimeSlotIndex(now)
-    // (which already floors) loses that fraction and causes the current slot
-    // to be treated as "future" and cleared — which is why a 14:40 row could
-    // disappear when the real time is 14:30.
+    // Reverting to simpler index calculation and ceiling for the current slot to ensure current data is counted.
     const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20);
     // -----------------------------------------------------------
 
@@ -52,32 +48,36 @@ async function loadAndProcessData() {
     const { data, error } = await supabase
         .from(TABLE_NAME)
         .select('checked_at, lot_name, api_status_code')
-        .order('checked_at', { ascending: true }); // Crucial for interpolation later
+        .order('checked_at', { ascending: true }); 
 
     if (error) {
         console.error('Error fetching data:', error);
-        HEATMAP_CONTAINER.innerHTML = `<p style="color: red;">Error loading data: ${error.message}. Please check console for network errors.</p>`;
+        HEATMAP_CONTAINER.innerHTML = `<p style="color: red;">שגיאה בטעינת נתונים: ${error.message}. בדוק את הקונסול.</p>`;
         return;
     }
     
-    // console.log('--- RAW DATA FETCHED ---', data);
-
     if (!data || data.length === 0) {
-        HEATMAP_CONTAINER.innerHTML = `<p>No parking data records found in the table '${TABLE_NAME}'. Please verify your Supabase query and table content.</p>`;
+        HEATMAP_CONTAINER.innerHTML = `<p>לא נמצאו נתונים בטבלה. ודא נכונות הטבלה והמפתח.</p>`;
         return;
     }
 
     // 2. Aggregate Data into a structure of recorded points
     const aggregatedData = {};
     const uniqueLots = new Set();
-    let debugCount = 0;
+    let sundayDataFound = false;
 
     data.forEach(row => {
+        // IMPORTANT: Date objects instantiated from Supabase UTC timestamps 
+        // are automatically converted to the local browser's time zone when using getDay().
         const date = new Date(row.checked_at);
-        const dayOfWeek = date.getDay(); 
+        const dayOfWeek = date.getDay(); // 0 for Sunday
         const timeSlot = getTimeSlotIndex(date);
         const lotName = row.lot_name;
         const code = row.api_status_code; 
+        
+        if (dayOfWeek === 0) {
+             sundayDataFound = true;
+        }
 
         uniqueLots.add(lotName);
 
@@ -90,18 +90,12 @@ async function loadAndProcessData() {
 
         // Store the status code at the exact 20-minute slot
         aggregatedData[lotName][dayOfWeek][timeSlot] = code;
-
-        if (debugCount < 10 && code !== 0) {
-            // console.log(`Processed: Lot=${lotName}, Day=${DAYS[dayOfWeek]}, Slot=${timeSlot} (${getTimeString(timeSlot)}), Status=${code}`);
-            debugCount++;
-        }
     });
-
-    // 3. Interpolate the data to fill in gaps (like the 90-min intervals)
-    // --- PASSING CURRENT DAY AND SLOT TO LIMIT INTERPOLATION ---
-    const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
     
-    // console.log('--- FINAL AGGREGATED DATA ---', interpolatedData);
+    console.log(`Debug: Sunday data found in aggregation: ${sundayDataFound}`);
+
+    // 3. Interpolate the data to fill in gaps and cap the future slots
+    const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
     // 4. Sort lot names alphabetically
     const sortedLots = Array.from(uniqueLots).sort();
@@ -113,11 +107,6 @@ async function loadAndProcessData() {
 /**
  * Iterates through the aggregated data and fills in missing 20-minute slots 
  * (marked as 0) with the last known status code, but ONLY up to the current time.
- * @param {object} data - Aggregated data with gaps (0s).
- * @param {Set<string>} lots - Set of unique parking lot names.
- * @param {number} currentDay - Today's day index (0-6).
- * @param {number} currentSlot - Today's current slot index (0-72).
- * @returns {object} Interpolated data structure.
  */
 function interpolateData(data, lots, currentDay, currentSlot) {
     const interpolated = {};
@@ -128,37 +117,29 @@ function interpolateData(data, lots, currentDay, currentSlot) {
         for (let day = 0; day < DAYS.length; day++) {
             const dayData = data[lotName][day];
 
-            // Only process if data exists for that lot/day
             if (dayData) {
                 interpolated[lotName][day] = [...dayData]; 
                 let lastStatus = 0;
 
-                // Determine the end slot for interpolation. 
-                // Only interpolate up to the current slot if it's the current day.
-                // Otherwise, interpolate the full 72 slots (0-71).
-                const endSlot = (day === currentDay) ? currentSlot : SLOTS_PER_DAY;
-
                 // Iterate through all 72 slots for the day
                 for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
                     
-                    // --- FUNCTIONAL FIX: STOP INTERPOLATION AT CURRENT TIME ---
+                    // --- TIME GATE FIX ---
                     // If we are on the current day, any slot *after* the current slot must remain 0 (white).
                     if (day === currentDay && slot >= currentSlot) {
-                        interpolated[lotName][day][slot] = 0; // Ensure future slots are reset to 0
+                        interpolated[lotName][day][slot] = 0; 
                         continue; 
                     }
-                    // -------------------------------------------------------------
+                    // ---------------------
 
                     const currentStatus = dayData[slot];
 
                     if (currentStatus > 0) {
-                        // If we have a real status (1, 2, 3, or 4), update lastStatus
                         lastStatus = currentStatus;
                     } else if (lastStatus > 0) {
-                        // If current status is 0 (empty) but we have a last known status, fill the gap
+                        // Fill the gap
                         interpolated[lotName][day][slot] = lastStatus;
                     }
-                    // If both currentStatus and lastStatus are 0, it remains 0 (status-empty)
                 }
             } else {
                 // If the entire day is missing, initialize it to 0
@@ -166,12 +147,12 @@ function interpolateData(data, lots, currentDay, currentSlot) {
             }
         }
     }
-    console.log('--- INTERPOLATION COMPLETE. Future slots for the current day are reset to "No Data" (0). ---');
+    console.log('--- Interpolation Complete: Future slots reset to 0. ---');
     return interpolated;
 }
 
 // =================================================================
-// 4. HEATMAP RENDERING (Updated for Day/Time flip and smaller size)
+// 4. HEATMAP RENDERING
 // =================================================================
 
 function getStatusText(code) {
@@ -205,18 +186,17 @@ function renderHeatmap(data, lots) {
 
 
     lots.forEach(lotName => {
-    const lotDiv = document.createElement('div');
-    lotDiv.className = 'lot-heatmap';
-    // Title only; directionality and alignment are handled by CSS (`body { direction: rtl; }` and `h2 { text-align: right; }`).
-    lotDiv.innerHTML = `<h2>${lotName}</h2>`;
+        const lotDiv = document.createElement('div');
+        lotDiv.className = 'lot-heatmap';
+        // Title only
+        lotDiv.innerHTML = `<h2>${lotName}</h2>`;
 
         // --- Heatmap Grid for this Lot (Days as Rows, Time as Columns) ---
         const gridDiv = document.createElement('div');
-    gridDiv.className = 'grid-container';
+        gridDiv.className = 'grid-container';
         // 73 columns: 1 (Day Label) + 72 (20-min slots)
         gridDiv.style.gridTemplateColumns = `60px repeat(${SLOTS_PER_DAY}, 1fr)`; 
-    // Grid inherits direction from the document CSS; avoid inline direction styles for cleaner markup/CSS control.
-
+        
         // 1. Time Slot Header Row (73 cells)
         gridDiv.innerHTML += `<div class="time-label time-label-header">יום / שעה</div>`; // RTL Day / Time header
         for (let slot = 0; slot < SLOTS_PER_DAY; slot += 6) { // Print only every 6th slot (2 hours)
@@ -248,14 +228,11 @@ function renderHeatmap(data, lots) {
                 }
 
                 gridDiv.innerHTML += `<div class="heatmap-cell ${className}"
-                                             title="${lotName} - ${dayName} ${timeString} - Status: ${statusText}"></div>`;
+                                             title="${lotName} - ${dayName} ${timeString} - סטטוס: ${statusText}"></div>`;
             }
         }
 
         lotDiv.appendChild(gridDiv);
-        // Append the whole lot container (which includes the <h2> title and the grid)
-        // to the heatmap container. Previously the code appended only the gridDiv,
-        // which removed the heading from the DOM and made the lot name invisible.
         HEATMAP_CONTAINER.appendChild(lotDiv);
     });
 }
@@ -267,3 +244,4 @@ function renderHeatmap(data, lots) {
 document.addEventListener('DOMContentLoaded', () => {
     loadAndProcessData();
 });
+
