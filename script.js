@@ -1,5 +1,5 @@
 // =================================================================
-// 1. CONFIGURATION (No changes)
+// 1. CONFIGURATION 
 // =================================================================
 
 const SUPABASE_URL = 'https://shmtkxshrsrkwovjokqa.supabase.co'; 
@@ -11,14 +11,13 @@ const SLOTS_PER_DAY = 72;
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']; 
 
 // =================================================================
-// 2. HELPER FUNCTIONS (No changes)
+// 2. HELPER FUNCTIONS (Using UTC time)
 // =================================================================
 
 /**
  * Calculates the index of the 20-minute time slot (0 to 71) using UTC time.
  */
 function getUTCTimeSlotIndex(date) {
-    // Using UTC hours/minutes for slot calculation
     const hours = date.getUTCHours();
     const minutes = date.getUTCMinutes();
     return Math.floor(((hours * 60) + minutes) / 20);
@@ -41,17 +40,17 @@ async function loadAndProcessData() {
 
     HEATMAP_CONTAINER.innerHTML = '<p>טוען נתוני חניה...</p>';
     
-    // --- Current Day and Slot for Interpolation Limit ---
+    // --- Current Day and Slot for Interpolation Limit (Local Time) ---
     const now = new Date();
-    const currentDay = now.getDay();
-    const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20);
+    const currentDay = now.getDay(); // Local Day
+    const currentSlot = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 20); // Local Slot
     // -----------------------------------------------------------
 
     // 1. Fetch Data
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        // *** CRITICAL FIX: Explicitly request 'checked_at' as a string/text type (::text) ***
-        .select('checked_at::text, lot_name, api_status_code')
+        // *** FIX: Removed the ::text cast to ensure the full timestampz object is returned ***
+        .select('checked_at, lot_name, api_status_code')
         .order('checked_at', { ascending: true }); 
 
     if (error) {
@@ -70,12 +69,11 @@ async function loadAndProcessData() {
     const uniqueLots = new Set();
     
     data.forEach(row => {
-        // *** FIX: Instantiate Date object using the fetched text string ***
         const date = new Date(row.checked_at);
         
-        // Use UTC Day for consistent indexing (0=Sunday UTC)
-        const dayOfWeek = date.getUTCDay(); 
-        const timeSlot = getUTCTimeSlotIndex(date); // Now using UTC hours/minutes
+        // *** CRITICAL: Use UTC Day for reliable indexing ***
+        const dayOfWeek = date.getUTCDay(); // 0 (Sunday) to 6 (Saturday) UTC
+        const timeSlot = getUTCTimeSlotIndex(date); 
         
         const lotName = row.lot_name;
         const code = row.api_status_code; 
@@ -89,11 +87,11 @@ async function loadAndProcessData() {
             aggregatedData[lotName][dayOfWeek] = Array(SLOTS_PER_DAY).fill(0); 
         }
 
-        // Store the status code at the exact 20-minute slot
         aggregatedData[lotName][dayOfWeek][timeSlot] = code;
     });
 
     // 3. Interpolate the data to fill in gaps and cap the future slots
+    // Interpolation still uses local 'currentDay' and 'currentSlot' for the display cutoff.
     const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
     // 4. Sort lot names alphabetically
@@ -104,8 +102,8 @@ async function loadAndProcessData() {
 }
 
 /**
- * Iterates through the aggregated data and fills in missing 20-minute slots 
- * (marked as 0) with the last known status code, but ONLY up to the current time.
+ * Fills in missing 20-minute slots with the last known status code, 
+ * but ONLY up to the current local time.
  */
 function interpolateData(data, lots, currentDay, currentSlot) {
     const interpolated = {};
@@ -124,6 +122,7 @@ function interpolateData(data, lots, currentDay, currentSlot) {
                 for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
                     
                     // --- TIME GATE CHECK (Uses LOCAL day/time for display cutoff) ---
+                    // This logic MUST check the LOCAL day/slot against the current day/slot.
                     if (day === currentDay && slot >= currentSlot) {
                         interpolated[lotName][day][slot] = 0; 
                         continue; 
@@ -149,7 +148,7 @@ function interpolateData(data, lots, currentDay, currentSlot) {
 }
 
 // =================================================================
-// 4. HEATMAP RENDERING
+// 4. HEATMAP RENDERING (No changes)
 // =================================================================
 
 function getStatusText(code) {
