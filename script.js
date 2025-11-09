@@ -72,10 +72,10 @@ async function loadAndProcessData() {
     const uniqueLots = new Set();
     
     data.forEach(row => {
-        // ✅ FIX: Convert UTC timestamp to local Israel time
+        // ✅ FIXED: convert UTC timestamp to LOCAL time properly
         const utcDate = new Date(row.checked_at);
-        const date = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
-
+        const date = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
+        
         const dayOfWeek = date.getDay(); 
         const timeSlot = getLocalTimeSlotIndex(date);
         
