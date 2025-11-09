@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מפת חום חניה - צפייה בחניון</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/heatmap.css">
+</head>
+<body>
+    <div class="container">
+        <header class="heatmap-header">
+            <div class="nav-section">
+                <button id="back-btn" class="back-btn">
+                    ← חזרה לרשימת החניונים
+                </button>
+            </div>
+            
+            <div class="lot-info">
+                <h1 id="lot-title">טוען...</h1>
+                <div class="lot-meta">
+                    <span id="lot-details">קוד: - | ID: -</span>
+                    <span id="data-status" class="data-status loading">טוען נתונים...</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="legend-section">
+                <h3>מקרא</h3>
+                <div class="legend-items">
+                    <span class="legend-item status-1">
+                        <span class="color-box"></span>
+                        פנוי
+                    </span>
+                    <span class="legend-item status-2">
+                        <span class="color-box"></span>
+                        כמעט מלא
+                    </span>
+                    <span class="legend-item status-3">
+                        <span class="color-box"></span>
+                        מלא
+                    </span>
+                    <span class="legend-item status-4">
+                        <span class="color-box"></span>
+                        לא ידוע/כישלון באיסוף נתונים
+                    </span>
+                    <span class="legend-item status-empty">
+                        <span class="color-box"></span>
+                        ריק = אין נתונים
+                    </span>
+                </div>
+            </div>
+
+            <div class="heatmap-container" id="heatmap-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>טוען נתוני חניון...</p>
+                </div>
+            </div>
+
+            <div class="stats-section" id="stats-section" style="display: none;">
+                <h3>סטטיסטיקות</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-records">-</span>
+                        <span class="stat-label">סך רשומות</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="days-coverage">-</span>
+                        <span class="stat-label">ימים בכיסוי</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="last-update">-</span>
+                        <span class="stat-label">עדכון אחרון</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>נתונים מתעדכנים בזמן אמת • מפת חום מציגה נתונים לשבוע האחרון</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/heatmap-viewer.js"></script>
+</body>
+</html>

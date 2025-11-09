@@ -1,17 +1,53 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parking Status Heatmap</title>
-    <link rel="stylesheet" href="style.css">
-    </head>
+    <title>מפת חום לזמינות חניה - בחר חניון</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
 <body>
-    <h1>מפת חום לזמינות חניה</h1>
-    <div id="heatmap-container">
-        </div>
+    <div class="container">
+        <header>
+            <h1>🅿️ מפת חום לזמינות חניה</h1>
+            <p class="subtitle">בחר חניון כדי לצפות במפת החום השבועית</p>
+        </header>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script> 
+        <main>
+            <div class="search-section">
+                <div class="search-container">
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="🔍 חפש חניון לפי שם..."
+                        autocomplete="off"
+                    >
+                    <button id="clear-search" class="clear-btn">✖</button>
+                </div>
+                <div class="controls">
+                    <div class="stats">
+                        <span id="lot-count">טוען...</span> חניונים זמינים
+                    </div>
+                    <button id="compare-btn" class="compare-btn">השווה חניונים</button>
+                </div>
+                <div id="compare-status" class="compare-status" style="display: none;">
+                    בחר עד 2 חניונים להשוואה
+                </div>
+            </div>
+
+            <div class="lots-grid" id="lots-grid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>טוען רשימת חניונים...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>נתונים מתעדכנים בזמן אמת • פותח על ידי מערכת ניטור חניה חכמה</p>
+        </footer>
+    </div>
+
+    <script src="js/lot-selector.js"></script>
 </body>
 </html>

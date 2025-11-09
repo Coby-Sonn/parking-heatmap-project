@@ -1,0 +1,451 @@
+{
+  "parking_lots": {
+    "active": [
+      {
+        "code_achoza": 10,
+        "name": "בזל",
+        "website_id": 3
+      },
+      {
+        "code_achoza": 2033,
+        "name": "אבולעפיה",
+        "website_id": 56
+      },
+      {
+        "code_achoza": 202,
+        "name": "אחימאיר",
+        "website_id": 64
+      },
+      {
+        "code_achoza": 76,
+        "name": "אסותא",
+        "website_id": 122
+      },
+      {
+        "code_achoza": 21,
+        "name": "ארלוזורוב - חנה וסע",
+        "website_id": 1
+      },
+      {
+        "code_achoza": 77,
+        "name": "ארלוזורוב 17",
+        "website_id": 123
+      },
+      {
+        "code_achoza": 17,
+        "name": "בוגרשוב",
+        "website_id": 2
+      },
+      {
+        "code_achoza": 26,
+        "name": "בית האצ\"ל",
+        "website_id": 21
+      },
+      {
+        "code_achoza": 65,
+        "name": "בית הדר",
+        "website_id": 93
+      },
+      {
+        "code_achoza": 2030,
+        "name": "בית החייל",
+        "website_id": 72
+      },
+      {
+        "code_achoza": 2029,
+        "name": "בית צורי",
+        "website_id": 85
+      },
+      {
+        "code_achoza": 57,
+        "name": "בן יוסף",
+        "website_id": 138
+      },
+      {
+        "code_achoza": 2028,
+        "name": "בן יוסף 2",
+        "website_id": 88
+      },
+      {
+        "code_achoza": 15,
+        "name": "בני דן",
+        "website_id": 7
+      },
+      {
+        "code_achoza": 14,
+        "name": "ברוריה",
+        "website_id": 8
+      },
+      {
+        "code_achoza": 2026,
+        "name": "ברזני",
+        "website_id": 87
+      },
+      {
+        "code_achoza": 13,
+        "name": "גולדה",
+        "website_id": 10
+      },
+      {
+        "code_achoza": 41,
+        "name": "גולדמן",
+        "website_id": 124
+      },
+      {
+        "code_achoza": 62,
+        "name": "גולפיטק",
+        "website_id": 98
+      },
+      {
+        "code_achoza": 44,
+        "name": "גלי גיל",
+        "website_id": 12
+      },
+      {
+        "code_achoza": 2025,
+        "name": "גלי צה\"ל",
+        "website_id": 54
+      },
+      {
+        "code_achoza": 53,
+        "name": "גן הכובשים 1 - מזרח",
+        "website_id": 13
+      },
+      {
+        "code_achoza": 196,
+        "name": "גן הכובשים 2 - מערב",
+        "website_id": 129
+      },
+      {
+        "code_achoza": 61,
+        "name": "גני יהושע",
+        "website_id": 99
+      },
+      {
+        "code_achoza": 24,
+        "name": "דובנוב",
+        "website_id": 15
+      },
+      {
+        "code_achoza": 12,
+        "name": "הארד",
+        "website_id": 16
+      },
+      {
+        "code_achoza": 2024,
+        "name": "הבעש\"ט",
+        "website_id": 55
+      },
+      {
+        "code_achoza": 18,
+        "name": "מירשם",
+        "website_id": 48
+      },
+      {
+        "code_achoza": 25,
+        "name": "סינרמה",
+        "website_id": 37
+      },
+      {
+        "code_achoza": 63,
+        "name": "הלוחמים",
+        "website_id": 25
+      },
+      {
+        "code_achoza": 75,
+        "name": "המוזיאונים",
+        "website_id": 121
+      },
+      {
+        "code_achoza": 2022,
+        "name": "המערכה",
+        "website_id": 77
+      },
+      {
+        "code_achoza": 171,
+        "name": "הנדסה",
+        "website_id": 47
+      },
+      {
+        "code_achoza": 2037,
+        "name": "המשתלה",
+        "website_id": 133
+      },
+      {
+        "code_achoza": 16,
+        "name": "חברה חדשה",
+        "website_id": 4
+      },
+      {
+        "code_achoza": 167,
+        "name": "חוף תל-ברוך",
+        "website_id": 134
+      },
+      {
+        "code_achoza": 47,
+        "name": "מרכזים",
+        "website_id": 32
+      },
+      {
+        "code_achoza": 49,
+        "name": "מרד",
+        "website_id": 33
+      },
+      {
+        "code_achoza": 32,
+        "name": "הצפירה 1",
+        "website_id": 19
+      },
+      {
+        "code_achoza": 33,
+        "name": "הצפירה 2",
+        "website_id": 20
+      },
+      {
+        "code_achoza": 50,
+        "name": "פנחס רוזן",
+        "website_id": 23
+      },
+      {
+        "code_achoza": 51,
+        "name": "התקומה",
+        "website_id": 44
+      },
+      {
+        "code_achoza": 52,
+        "name": "החשמל",
+        "website_id": 18
+      },
+      {
+        "code_achoza": 54,
+        "name": "מונטיפיורי",
+        "website_id": 29
+      },
+      {
+        "code_achoza": 58,
+        "name": "רבניצקי",
+        "website_id": 40
+      },
+      {
+        "code_achoza": 83,
+        "name": "צמרות",
+        "website_id": 127
+      },
+      {
+        "code_achoza": 170,
+        "name": "קצה השדרה (רוטשילד1)",
+        "website_id": 135
+      },
+      {
+        "code_achoza": 88,
+        "name": "כיכר עליה",
+        "website_id": 132
+      },
+      {
+        "code_achoza": 833,
+        "name": "ליבר",
+        "website_id": 120
+      },
+      {
+        "code_achoza": 2003,
+        "name": "צבי נישרי",
+        "website_id": 67
+      },
+      {
+        "code_achoza": 2010,
+        "name": "מכללת יפו",
+        "website_id": 80
+      },
+      {
+        "code_achoza": 2016,
+        "name": "יד אבנר",
+        "website_id": 58
+      },
+      {
+        "code_achoza": 2017,
+        "name": "טירת צבי",
+        "website_id": 76
+      },
+      {
+        "code_achoza": 2018,
+        "name": "טאגור",
+        "website_id": 79
+      },
+      {
+        "code_achoza": 2020,
+        "name": "וולפסון 2",
+        "website_id": 89
+      },
+      {
+        "code_achoza": 2021,
+        "name": "הרב קוק",
+        "website_id": 57
+      },
+      {
+        "code_achoza": 2034,
+        "name": "מכללה למינהל ומכללת לוינסקי 2",
+        "website_id": 91
+      },
+      {
+        "code_achoza": 2035,
+        "name": "מכללה למינהל ומכללת לוינסקי 3",
+        "website_id": 90
+      },
+      {
+        "code_achoza": 2036,
+        "name": "חניון אלוף",
+        "website_id": 110
+      },
+      {
+        "code_achoza": 63,
+        "name": "חניון הלוחמים",
+        "website_id": 25
+      },
+      {
+        "code_achoza": 22,
+        "name": "חניון התחנה",
+        "website_id": 28
+      },
+      {
+        "code_achoza": 42,
+        "name": "חניון התרבות",
+        "website_id": 94
+      },
+      {
+        "code_achoza": 173,
+        "name": "חניון כיתן",
+        "website_id": 137
+      },
+      {
+        "code_achoza": 67,
+        "name": "חניון כלכלה",
+        "website_id": 96
+      },
+      {
+        "code_achoza": 48,
+        "name": "חניון כרמל 1",
+        "website_id": 24
+      },
+      {
+        "code_achoza": 78,
+        "name": "חניון כרמל 2",
+        "website_id": 114
+      },
+      {
+        "code_achoza": 30,
+        "name": "חניון לולאה",
+        "website_id": 26
+      },
+      {
+        "code_achoza": 2014,
+        "name": "חניון מבצע קדש",
+        "website_id": 70
+      },
+      {
+        "code_achoza": 20,
+        "name": "חניון מדעי החברה",
+        "website_id": 50
+      },
+      {
+        "code_achoza": 2012,
+        "name": "חניון מי ומי",
+        "website_id": 62
+      },
+      {
+        "code_achoza": 2011,
+        "name": "מכללה למינהל ומכללת לוינסקי 1",
+        "website_id": 63
+      },
+      {
+        "code_achoza": 23,
+        "name": "חניון מפעל הפיס",
+        "website_id": 31
+      },
+      {
+        "code_achoza": 28,
+        "name": "חניון נחושת",
+        "website_id": 34
+      },
+      {
+        "code_achoza": 72,
+        "name": "חניון סוציאלית",
+        "website_id": 108
+      },
+      {
+        "code_achoza": 25,
+        "name": "חניון סינרמה",
+        "website_id": 37
+      },
+      {
+        "code_achoza": 2008,
+        "name": "חניון סלודור",
+        "website_id": 65
+      },
+      {
+        "code_achoza": 64,
+        "name": "חניון סמולרש",
+        "website_id": 95
+      },
+      {
+        "code_achoza": 31,
+        "name": "חניון סעדיה גאון",
+        "website_id": 38
+      },
+      {
+        "code_achoza": 2005,
+        "name": "חניון עיר שמש",
+        "website_id": 81
+      },
+      {
+        "code_achoza": 2004,
+        "name": "חניון פליטי הספר",
+        "website_id": 75
+      },
+      {
+        "code_achoza": 43,
+        "name": "חניון פלמ\"ח",
+        "website_id": 39
+      },
+      {
+        "code_achoza": 81,
+        "name": "חניון רידינג מזרח",
+        "website_id": 126
+      },
+      {
+        "code_achoza": 80,
+        "name": "חניון רידינג מערב",
+        "website_id": 41
+      },
+      {
+        "code_achoza": 86,
+        "name": "חניון רמז-ארלוזורוב",
+        "website_id": 131
+      },
+      {
+        "code_achoza": 39,
+        "name": "חניון רפואת שיניים",
+        "website_id": 53
+      },
+      {
+        "code_achoza": 2002,
+        "name": "חניון רפידים",
+        "website_id": 68
+      },
+      {
+        "code_achoza": 2000,
+        "name": "חניון שלונסקי",
+        "website_id": 69
+      },
+      {
+        "code_achoza": 66,
+        "name": "חניון שרתון",
+        "website_id": 42
+      },
+      {
+        "code_achoza": 11,
+        "name": "חניון תל נורדאו",
+        "website_id": 45
+      }
+    ]
+  }
+}
