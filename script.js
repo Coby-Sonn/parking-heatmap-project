@@ -111,7 +111,24 @@ async function loadAndProcessData() {
   // 3) Interpolate (fill gaps) but never beyond "now" in Israel time
   const interpolatedData = interpolateData(aggregatedData, uniqueLots, currentDay, currentSlot);
 
-  // 4) Sort & render
+  // 4. Diagnostics: count how many rows fell into each day for each lot
+  const diagnosticDiv = document.createElement('div');
+  diagnosticDiv.style.fontFamily = 'monospace';
+  diagnosticDiv.style.direction = 'ltr';
+  diagnosticDiv.innerHTML = '<h3>DEBUG BUCKET COUNTS (Israel Time)</h3><pre>';
+
+  for (const lotName of uniqueLots) {
+    diagnosticDiv.innerHTML += `\n${lotName}:\n`;
+    for (let d = 0; d < DAYS.length; d++) {
+      const dayArr = aggregatedData[lotName][d] || [];
+      const nonzero = dayArr.filter(x => x > 0).length;
+      diagnosticDiv.innerHTML += `  ${DAYS[d]}: ${nonzero} slots\n`;
+    }
+  }
+  diagnosticDiv.innerHTML += '</pre><hr>';
+  document.body.prepend(diagnosticDiv);
+  
+  // 5. Sort & Render
   const sortedLots = Array.from(uniqueLots).sort();
   renderHeatmap(interpolatedData, sortedLots);
 }
