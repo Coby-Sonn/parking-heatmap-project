@@ -169,20 +169,43 @@ class DataFetcher {
             try {
                 console.log(`📥 Fetching batch ${Math.floor(offset / CONFIG.BATCH_SIZE) + 1} (offset: ${offset})`);
                 
-                // Ensure deterministic ordering: older records first, newest last.
-                // The processor writes into each time-slot in-order, so the last
-                // record for a slot will overwrite earlier ones — this guarantees
-                // the most recent pull for a slot is used.
-                const { data, error } = await this.supabase
-                    .from(CONFIG.TABLE_NAME)
-                    // include `id` to make ordering deterministic in case of
-                    // identical timestamps (tie-breaker)
-                    .select('id, checked_at, api_status_code')
-                    .eq('lot_name', lotName)
-                    .gte('checked_at', cutoffString)
-                    .range(offset, offset + CONFIG.BATCH_SIZE - 1)
-                    .order('checked_at', { ascending: true })
-                    .order('id', { ascending: true });
+
+                // Try a deterministic query: order by checked_at asc (oldest->newest).
+                // If the DB has an `id` column we additionally order by it as a
+                // tie-breaker; if `id` doesn't exist we gracefully retry without it.
+                let data, error;
+                try {
+                    const res = await this.supabase
+                        .from(CONFIG.TABLE_NAME)
+                        .select('id, checked_at, api_status_code')
+                        .eq('lot_name', lotName)
+                        .gte('checked_at', cutoffString)
+                        .range(offset, offset + CONFIG.BATCH_SIZE - 1)
+                        .order('checked_at', { ascending: true })
+                        .order('id', { ascending: true });
+                    data = res.data;
+                    error = res.error;
+                } catch (err) {
+                    // Some Supabase clients surface DB errors as thrown objects
+                    // with a `code` field (e.g. 42703 = undefined column).
+                    // Fall through to inspect `err` below.
+                    error = err;
+                }
+
+                // If we received a DB "column does not exist" for `id`, retry
+                // the same batch without selecting/ordering by `id`.
+                if (error && (error.code === '42703' || /column .* id .* does not exist/i.test(error.message || ''))) {
+                    console.warn('[fetch] Detected missing `id` column in table - retrying batch without id/tie-breaker');
+                    const res2 = await this.supabase
+                        .from(CONFIG.TABLE_NAME)
+                        .select('checked_at, api_status_code')
+                        .eq('lot_name', lotName)
+                        .gte('checked_at', cutoffString)
+                        .range(offset, offset + CONFIG.BATCH_SIZE - 1)
+                        .order('checked_at', { ascending: true });
+                    data = res2.data;
+                    error = res2.error;
+                }
 
                 if (error) {
                     throw error;
