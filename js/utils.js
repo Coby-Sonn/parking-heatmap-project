@@ -169,13 +169,20 @@ class DataFetcher {
             try {
                 console.log(`📥 Fetching batch ${Math.floor(offset / CONFIG.BATCH_SIZE) + 1} (offset: ${offset})`);
                 
+                // Ensure deterministic ordering: older records first, newest last.
+                // The processor writes into each time-slot in-order, so the last
+                // record for a slot will overwrite earlier ones — this guarantees
+                // the most recent pull for a slot is used.
                 const { data, error } = await this.supabase
                     .from(CONFIG.TABLE_NAME)
-                    .select('checked_at, api_status_code')
+                    // include `id` to make ordering deterministic in case of
+                    // identical timestamps (tie-breaker)
+                    .select('id, checked_at, api_status_code')
                     .eq('lot_name', lotName)
                     .gte('checked_at', cutoffString)
                     .range(offset, offset + CONFIG.BATCH_SIZE - 1)
-                    .order('checked_at', { ascending: true });
+                    .order('checked_at', { ascending: true })
+                    .order('id', { ascending: true });
 
                 if (error) {
                     throw error;
@@ -264,6 +271,16 @@ class DataProcessor {
         // Initialize aggregated data structure
         const aggregated = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
         const dayDistribution = [0, 0, 0, 0, 0, 0, 0];
+
+        // Defensive: ensure rows are processed oldest -> newest so that later
+        // samples (more recent pulls) overwrite earlier ones deterministically.
+        // This is a no-op if data already arrives ordered from the DB.
+        try {
+            rawData.sort((a, b) => new Date(a.checked_at) - new Date(b.checked_at));
+        } catch (e) {
+            // If sorting fails for any reason, continue with original order
+            console.warn('[utils] Warning: rawData.sort failed, continuing without sort', e);
+        }
 
         // Process each record
         rawData.forEach((row, index) => {
