@@ -442,7 +442,13 @@ class LoadingManager {
 
         container.innerHTML = `
             <div class="loading">
-                <div class="spinner"></div>
+                <lottie-player class="lottie-player"
+                               src="lotties/loader.json"
+                               background="transparent"
+                               speed="1"
+                               loop
+                               autoplay>
+                </lottie-player>
                 <p>${message}</p>
             </div>
         `;
