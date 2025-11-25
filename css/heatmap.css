@@ -109,10 +109,12 @@
     font-size: 1rem;
     font-weight: 500;
     color: #2c3e50;
-    background: transparent; /* no colored background behind label text */
+    background: transparent;
+    /* no colored background behind label text */
     padding: 0;
     margin: 0;
-    flex-direction: row-reverse; /* place .color-box to the right */
+    flex-direction: row-reverse;
+    /* place .color-box to the right */
 }
 
 /* Prevent accidental coloring of the whole legend-item if a status-* class is present */
@@ -134,7 +136,8 @@
     display: inline-block;
     box-sizing: border-box;
     flex: none;
-    margin-inline-start: 8px; /* small spacing when RTL/LTR */
+    margin-inline-start: 8px;
+    /* small spacing when RTL/LTR */
 }
 
 /* Heatmap container */
@@ -145,8 +148,10 @@
     border-radius: 15px;
     margin-bottom: 30px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    overflow-x: auto; /* allow horizontal scroll */
-    -webkit-overflow-scrolling: touch; /* smoother scrolling on mobile */
+    overflow-x: auto;
+    /* allow horizontal scroll */
+    -webkit-overflow-scrolling: touch;
+    /* smoother scrolling on mobile */
 }
 
 /* Grid container for heatmap */
@@ -157,9 +162,10 @@
     border-radius: 8px;
     /* allow the grid to size to its full content so the parent can scroll */
     width: max-content;
-    overflow: visible; /* do not clip the grid — parent will handle scrolling */
+    overflow: visible;
+    /* do not clip the grid — parent will handle scrolling */
     /* remove fixed min-width so content width determines horizontal scroll */
-    /* min-width: 800px; */ 
+    /* min-width: 800px; */
     direction: rtl;
 }
 
@@ -185,7 +191,8 @@
 /* Heatmap cells */
 .heatmap-cell {
     min-height: 25px;
-    min-width: 15px; /* keep this so width:max-content produces a scrollable width */
+    min-width: 15px;
+    /* keep this so width:max-content produces a scrollable width */
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
@@ -326,7 +333,8 @@
     width: 150px;
     height: 150px;
     display: block;
-    transform: scaleX(-1); /* flip horizontally */
+    transform: scaleX(-1);
+    /* flip horizontally */
     -webkit-transform: scaleX(-1);
     backface-visibility: hidden;
     transform-origin: center;
@@ -342,46 +350,46 @@
     .heatmap-header {
         padding: 15px;
     }
-    
+
     .lot-info h1 {
         font-size: 1.6rem;
     }
-    
+
     .lot-meta {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
-    
+
     .legend-items {
         justify-content: flex-start;
         gap: 15px;
     }
-    
+
     .legend-item {
         font-size: 0.9rem;
     }
-    
+
     .grid-container {
         min-width: 600px;
     }
-    
+
     .time-label {
         font-size: 0.7rem;
         padding: 6px 2px;
         min-height: 30px;
     }
-    
+
     .heatmap-cell {
         min-height: 20px;
         min-width: 12px;
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
         gap: 15px;
     }
-    
+
     .stat-value {
         font-size: 1.6rem;
     }
@@ -391,18 +399,18 @@
     .grid-container {
         min-width: 500px;
     }
-    
+
     .time-label {
         font-size: 0.6rem;
         padding: 4px 2px;
         min-height: 25px;
     }
-    
+
     .heatmap-cell {
         min-height: 18px;
         min-width: 10px;
     }
-    
+
     .back-btn {
         padding: 10px 16px;
         font-size: 0.9rem;
@@ -465,23 +473,259 @@
 
 /* Print styles */
 @media print {
+
     .nav-section,
     .stats-section,
     footer {
         display: none;
     }
-    
+
     .heatmap-container {
         box-shadow: none;
         border: 1px solid #ddd;
     }
-    
+}
+
+.error-container h3 {
+    font-size: 1.5rem;
+    color: #e74c3c;
+    margin-bottom: 10px;
+}
+
+.error-container p {
+    color: #7f8c8d;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+
+.retry-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+/* Lottie loader container override / sizing & flip */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 30px 0;
+}
+
+/* Make the lottie larger and flip horizontally so the animation faces left */
+.lottie-player {
+    width: 150px;
+    height: 150px;
+    display: block;
+    transform: scaleX(-1);
+    /* flip horizontally */
+    -webkit-transform: scaleX(-1);
+    backface-visibility: hidden;
+    transform-origin: center;
+}
+
+/* Hide any legacy CSS/markup spinner that might be injected before the Lottie loads */
+.loading .spinner {
+    display: none !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .heatmap-header {
+        padding: 15px;
+    }
+
+    .lot-info h1 {
+        font-size: 1.6rem;
+    }
+
+    .lot-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .legend-items {
+        justify-content: flex-start;
+        gap: 15px;
+    }
+
+    .legend-item {
+        font-size: 0.9rem;
+    }
+
+    .grid-container {
+        min-width: 600px;
+    }
+
+    .time-label {
+        font-size: 0.7rem;
+        padding: 6px 2px;
+        min-height: 30px;
+    }
+
+    .heatmap-cell {
+        min-height: 20px;
+        min-width: 12px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .stat-value {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .grid-container {
+        min-width: 500px;
+    }
+
+    .time-label {
+        font-size: 0.6rem;
+        padding: 4px 2px;
+        min-height: 25px;
+    }
+
+    .heatmap-cell {
+        min-height: 18px;
+        min-width: 10px;
+    }
+
+    .back-btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Comparison styles */
+.comparison-container {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.heatmap-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.heatmap-wrapper.lot-1 {
+    border-left: 5px solid #3498db;
+}
+
+.heatmap-wrapper.lot-2 {
+    border-left: 5px solid #e67e22;
+}
+
+.heatmap-title {
+    margin: 0 0 20px 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+    padding: 15px;
+    background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+    border-radius: 10px;
+}
+
+.heatmap-wrapper.lot-1 .heatmap-title {
+    background: linear-gradient(135deg, #e3f2fd, #3498db);
+    color: #1976d2;
+}
+
+.heatmap-wrapper.lot-2 .heatmap-title {
+    background: linear-gradient(135deg, #fff3e0, #e67e22);
+    color: #d35400;
+}
+
+/* Responsive comparison */
+@media (min-width: 1200px) {
+    .comparison-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+    }
+}
+
+/* Print styles */
+@media print {
+
+    .nav-section,
+    .stats-section,
+    footer {
+        display: none;
+    }
+
+    .heatmap-container {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
     .comparison-container {
         display: block;
     }
-    
+
     .heatmap-wrapper {
         page-break-inside: avoid;
         margin-bottom: 20px;
+    }
+}
+
+/* Current time highlighting */
+.heatmap-cell.current-time {
+    position: relative;
+    z-index: 5;
+}
+
+.heatmap-cell.current-time::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid #e74c3c;
+    /* Red border */
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.6);
+    animation: blink-border 1.5s infinite;
+    pointer-events: none;
+    /* Allow clicking through */
+}
+
+@keyframes blink-border {
+    0% {
+        opacity: 1;
+        border-color: #e74c3c;
+    }
+
+    50% {
+        opacity: 0.4;
+        border-color: rgba(231, 76, 60, 0.4);
+    }
+
+    100% {
+        opacity: 1;
+        border-color: #e74c3c;
     }
 }
