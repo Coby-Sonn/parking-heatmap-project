@@ -8,7 +8,7 @@ const CONFIG = {
     SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNobXRreHNocnNya3dvdmpva3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDQ4MjAsImV4cCI6MjA3NzgyMDgyMH0.oENVmyU00Uy2N6gxir54yu4T0Jw_Jay2tITeQW3QfqE',
     TABLE_NAME: 'parking_consistency_data',
     SLOTS_PER_DAY: 72,
-    DAYS: ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
+    DAYS: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
     BATCH_SIZE: 1000, // For pagination
     MAX_RETRIES: 3
 };
@@ -51,7 +51,7 @@ function tzPartsForISO(isoString) {
     const second = Number(map.second || 0);
     // weekday short e.g. Sun, Mon, Tue
     const wk = (map.weekday || '').toLowerCase();
-    const wkMap = { 'sun':0, 'mon':1, 'tue':2, 'wed':3, 'thu':4, 'fri':5, 'sat':6 };
+    const wkMap = { 'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6 };
     const weekdayIndex = wkMap[wk] !== undefined ? wkMap[wk] : (new Date(isoString)).getDay();
     return { year, month, day, hour, minute, second, weekdayIndex };
 }
@@ -95,7 +95,7 @@ function getLocalDayHourMinute(utcString) {
     // 🔧 FIX: Use proper timezone conversion instead of hard-coded offset
     // This automatically handles daylight saving time transitions
     const utcDate = new Date(utcString);
-    
+
     // Use Intl.DateTimeFormat to properly convert to Israel timezone
     const israelDateTime = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Jerusalem',
@@ -106,17 +106,17 @@ function getLocalDayHourMinute(utcString) {
         minute: '2-digit',
         hour12: false
     }).formatToParts(utcDate);
-    
+
     const dateMap = {};
     israelDateTime.forEach(part => {
         if (part.type !== 'literal') {
             dateMap[part.type] = parseInt(part.value);
         }
     });
-    
+
     // Create a date in Israel timezone to get the correct day of week
     const israelDate = new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute);
-    
+
     return {
         day: israelDate.getDay(),
         hour: dateMap.hour,
@@ -130,8 +130,8 @@ function getSlot(hour, minute) {
 
 function getTimeLabel(slot) {
     const m = slot * 20;
-    const h = String(Math.floor(m / 60)).padStart(2,'0');
-    const mm = String(m % 60).padStart(2,'0');
+    const h = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
     return `${h}:${mm}`;
 }
 
@@ -151,7 +151,7 @@ class DataFetcher {
      */
     async fetchLotData(lotName, daysBack = 7) {
         console.log(`🔄 Fetching data for lot: ${lotName} (${daysBack} days back)`);
-        
+
         if (!this.supabase) {
             throw new Error('Supabase client not initialized');
         }
@@ -168,7 +168,7 @@ class DataFetcher {
         while (hasMore && attempts < CONFIG.MAX_RETRIES) {
             try {
                 console.log(`📥 Fetching batch ${Math.floor(offset / CONFIG.BATCH_SIZE) + 1} (offset: ${offset})`);
-                
+
 
                 // Request records ordered by checked_at ascending (oldest -> newest).
                 // Avoid selecting `id` to keep compatibility with schemas that don't
@@ -193,7 +193,7 @@ class DataFetcher {
                     allData.push(...data);
                     offset += CONFIG.BATCH_SIZE;
                     hasMore = data.length === CONFIG.BATCH_SIZE;
-                    
+
                     console.log(`✅ Batch loaded: ${data.length} records (total: ${allData.length})`);
                 } else {
                     hasMore = false;
@@ -201,15 +201,15 @@ class DataFetcher {
                 }
 
                 attempts = 0; // Reset attempts on success
-                
+
             } catch (error) {
                 attempts++;
                 console.error(`❌ Error fetching batch (attempt ${attempts}):`, error);
-                
+
                 if (attempts >= CONFIG.MAX_RETRIES) {
                     throw new Error(`Failed to fetch data after ${CONFIG.MAX_RETRIES} attempts: ${error.message}`);
                 }
-                
+
                 // Wait before retry
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
             }
@@ -230,7 +230,7 @@ class DataFetcher {
                 .limit(1);
 
             if (error) throw error;
-            
+
             console.log('✅ Supabase connection test successful');
             return true;
         } catch (error) {
@@ -252,21 +252,21 @@ class DataProcessor {
      */
     processHeatmapData(rawData, lotName) {
         console.log(`🔄 Processing ${rawData.length} records for heatmap...`);
-        
+
         // 🔧 FIX: Use consistent timezone handling - local Israel time for both current time and data processing
         const now = new Date();
         const nowLocal = getLocalDayHourMinute(now.toISOString());
         const currentDay = nowLocal.day;  // Use LOCAL day instead of UTC
         const currentSlot = getSlot(nowLocal.hour, nowLocal.minute);  // Use LOCAL time
-        
+
         // 🔍 DEBUG: Log current day/slot calculation for validation
         console.log(`🔍 [DEBUG] Fixed timezone handling:`, {
             utcTime: now.toISOString(),
             utcDay: now.getDay(),
             fixedLocalDay: currentDay,
             fixedLocalSlot: currentSlot,
-            localTime: `${nowLocal.hour.toString().padStart(2,'0')}:${nowLocal.minute.toString().padStart(2,'0')}`,
-            dayNames: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+            localTime: `${nowLocal.hour.toString().padStart(2, '0')}:${nowLocal.minute.toString().padStart(2, '0')}`,
+            dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         });
 
         // Initialize aggregated data structure
@@ -287,13 +287,13 @@ class DataProcessor {
         rawData.forEach((row, index) => {
             const { day, hour, minute } = getLocalDayHourMinute(row.checked_at);
             const slot = getSlot(hour, minute);
-            
+
             // Debug logging for first few records
             if (index < 5) {
                 console.log(`📝 Record ${index}:`, {
                     originalTime: row.checked_at,
                     convertedDay: day,
-                    dayName: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][day],
+                    dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day],
                     hebrewDay: CONFIG.DAYS[day],
                     hour,
                     minute,
@@ -301,14 +301,14 @@ class DataProcessor {
                     status: row.api_status_code
                 });
             }
-            
+
             // Count records per day
             dayDistribution[day]++;
-            
+
             // Store the status code
             if (slot >= 0 && slot < CONFIG.SLOTS_PER_DAY) {
                 aggregated[day][slot] = row.api_status_code;
-                
+
                 // Data successfully stored in aggregated array
             }
         });
@@ -316,7 +316,7 @@ class DataProcessor {
         // Log day distribution
         console.log('📈 Day distribution (records per day):');
         dayDistribution.forEach((count, dayIndex) => {
-            console.log(`  ${dayIndex} (${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dayIndex]}/Hebrew: ${CONFIG.DAYS[dayIndex]}): ${count} records`);
+            console.log(`  ${dayIndex} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex]}/Hebrew: ${CONFIG.DAYS[dayIndex]}): ${count} records`);
         });
 
         // Interpolate missing data
@@ -329,11 +329,11 @@ class DataProcessor {
                 totalRecords: rawData.length,
                 dayDistribution: dayDistribution,      // array of 7 counts
                 interpolated: interpolated,            // per-day interpolated arrays (if present)
-                rawSample: (aggregated || []).slice(0,10) // first 10 raw records for quick inspection
+                rawSample: (aggregated || []).slice(0, 10) // first 10 raw records for quick inspection
             });
 
             // human-friendly day names (index -> hebrew)
-            const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+            const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
             console.debug('[utils] 🔎 Day distribution detail:');
             (dayDistribution || []).forEach((cnt, idx) => {
                 console.debug(`  ${idx} (${dayNames[idx]}): ${cnt} records`);
@@ -349,7 +349,7 @@ class DataProcessor {
                 totalRecords: rawData.length,
                 processedAt: new Date().toISOString()
             };
-        } catch(e) {
+        } catch (e) {
             console.warn('[utils] debug logging failed', e);
         }
 
@@ -359,29 +359,41 @@ class DataProcessor {
             interpolated,
             dayDistribution,
             totalRecords: rawData.length,
-            processedAt: new Date().toISOString()
+            processedAt: new Date().toISOString(),
+            currentDay,
+            currentSlot
         };
     }
 
     /**
      * Interpolate missing data points
+     * @param {Array} aggregated - Aggregated data
+     * @param {number} currentDay - Current day index (0-6)
+     * @param {number} currentSlot - Current slot index (0-71)
+     * @returns {Array} Interpolated data
      */
     interpolateData(aggregated, currentDay, currentSlot) {
-        const interpolated = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
-        
+        const interpolated = JSON.parse(JSON.stringify(aggregated));
+
+        // For each day
         for (let d = 0; d < 7; d++) {
-            const arr = aggregated[d];
-            interpolated[d] = [...arr];
+            const arr = interpolated[d];
             let lastValidValue = 0;
-            
+
+            // Forward pass
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
                 // Don't interpolate future data - use consistent timezone comparison
-                // Fixed: use > instead of >= to include current slot data
+                // CHANGED: We now ALLOW future data to be populated from historical stats (interpolated)
+                // so we removed the block that zeroed out future slots.
+
+                /* 
+                // OLD LOGIC:
                 if (d === currentDay && s > currentSlot) {
                     interpolated[d][s] = 0;
                     continue;
                 }
-                
+                */
+
                 if (arr[s] > 0) {
                     lastValidValue = arr[s];
                 } else if (lastValidValue > 0) {
@@ -389,7 +401,7 @@ class DataProcessor {
                 }
             }
         }
-        
+
         return interpolated;
     }
 }
@@ -405,9 +417,9 @@ class ErrorHandler {
             timestamp: new Date().toISOString(),
             stack: error.stack
         };
-        
+
         console.error('🚨 Error occurred:', errorInfo);
-        
+
         // Return user-friendly message
         if (error.message?.includes('network')) {
             return 'בעיית חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.';
@@ -427,18 +439,24 @@ class ErrorHandler {
 class LoadingManager {
     static show(container, message = 'טוען נתונים...') {
         if (!container) return;
-        
+
         container.innerHTML = `
             <div class="loading">
-                <div class="spinner"></div>
+                <lottie-player class="lottie-player"
+                               src="lotties/loader.json"
+                               background="transparent"
+                               speed="1"
+                               loop
+                               autoplay>
+                </lottie-player>
                 <p>${message}</p>
             </div>
         `;
     }
-    
+
     static hide(container) {
         if (!container) return;
-        
+
         const loading = container.querySelector('.loading');
         if (loading) {
             loading.remove();
@@ -467,7 +485,7 @@ window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
   Insert this snippet after processed.interpolated is prepared (or at the end of your processing function)
   so you can see where the latest samples map to.
 */
-(function() {
+(function () {
     try {
         if (window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest) {
             const processed = window.__HEATMAP_DEBUG.latest;
@@ -491,7 +509,7 @@ window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
                 const hour = Math.floor(slot / slotsPerHour);
                 const intra = slot % slotsPerHour;
                 const minutes = Math.round(intra * (60 / slotsPerHour));
-                return `${hour.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}`;
+                return `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
             }
             console.debug('[utils] 🔎 Max slot human times per day:', maxSlots.map(s => slotToTime(s)));
         }
