@@ -1,27 +1,27 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מפת חום לזמינות חניה - בחר חניון</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
 </head>
+
 <body>
     <div class="container">
         <header>
-            <h1>🅿️ מפת חום לזמינות חניה</h1>
+            <h1 style="color: #3396d3;">פארקר - איפה חונים? 🅿️</h1>
             <p class="subtitle">בחר חניון כדי לצפות במפת החום השבועית</p>
         </header>
 
         <main>
             <div class="search-section">
                 <div class="search-container">
-                    <input
-                        type="text"
-                        id="search-input"
-                        placeholder="🔍 חפש חניון לפי שם..."
-                        autocomplete="off"
-                    >
+                    <input type="text" id="search-input" placeholder="🔍 חפש חניון לפי שם..." autocomplete="off">
                     <button id="clear-search" class="clear-btn">✖</button>
                 </div>
                 <div class="controls">
@@ -50,43 +50,44 @@
 
     <script src="js/lot-selector.js"></script>
     <script>
-    // small debug helpers for the lots list page
-    (function(){
-        const origFetch = window.fetch;
-        window.fetch = async function(...args){
-            try {
-                console.debug('[fetch:index] ->', args[0], args[1] || {});
-                const res = await origFetch.apply(this, args);
-                res.clone().text().then(text => {
-                    try { console.debug('[fetch:index] <-', args[0], JSON.parse(text)); }
-                    catch(e) { console.debug('[fetch:index] <-', args[0], text.slice(0,500)); }
-                }).catch(e => console.debug('[fetch:index] clone read failed', e));
-                return res;
-            } catch(err) {
-                console.error('[fetch:index] error', args[0], err);
-                throw err;
-            }
-        };
+        // small debug helpers for the lots list page
+        (function () {
+            const origFetch = window.fetch;
+            window.fetch = async function (...args) {
+                try {
+                    console.debug('[fetch:index] ->', args[0], args[1] || {});
+                    const res = await origFetch.apply(this, args);
+                    res.clone().text().then(text => {
+                        try { console.debug('[fetch:index] <-', args[0], JSON.parse(text)); }
+                        catch (e) { console.debug('[fetch:index] <-', args[0], text.slice(0, 500)); }
+                    }).catch(e => console.debug('[fetch:index] clone read failed', e));
+                    return res;
+                } catch (err) {
+                    console.error('[fetch:index] error', args[0], err);
+                    throw err;
+                }
+            };
 
-        const observe = () => {
-            const container = document.getElementById('lots-grid');
-            if(!container) return console.debug('[observer:index] lots-grid not found');
-            const mo = new MutationObserver(mutations => {
-                for(const m of mutations){
-                    for(const node of m.addedNodes){
-                        if(node.nodeType===1){
-                            console.debug('[observer:index] added node', node, 'snippet:', (node.outerHTML||'').slice(0,300));
+            const observe = () => {
+                const container = document.getElementById('lots-grid');
+                if (!container) return console.debug('[observer:index] lots-grid not found');
+                const mo = new MutationObserver(mutations => {
+                    for (const m of mutations) {
+                        for (const node of m.addedNodes) {
+                            if (node.nodeType === 1) {
+                                console.debug('[observer:index] added node', node, 'snippet:', (node.outerHTML || '').slice(0, 300));
+                            }
                         }
                     }
-                }
-            });
-            mo.observe(container, { childList: true, subtree: true });
-            console.debug('[observer:index] started on #lots-grid');
-        };
+                });
+                mo.observe(container, { childList: true, subtree: true });
+                console.debug('[observer:index] started on #lots-grid');
+            };
 
-        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe);
-        else observe();
-    })();
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe);
+            else observe();
+        })();
     </script>
 </body>
+
 </html>

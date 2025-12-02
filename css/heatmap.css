@@ -15,7 +15,7 @@
 }
 
 .back-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #927d55, #b89968);
     color: white;
     border: none;
     padding: 12px 20px;
@@ -31,12 +31,12 @@
 
 .back-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 16px rgba(146, 125, 85, 0.3);
 }
 
 .lot-info h1 {
     font-size: 2rem;
-    color: #2c3e50;
+    color: #927d55;
     margin: 0 0 10px 0;
     font-weight: 700;
 }
@@ -50,7 +50,7 @@
 }
 
 #lot-details {
-    color: #7f8c8d;
+    color: #927d55;
     font-size: 1rem;
     font-weight: 500;
 }
@@ -89,7 +89,7 @@
 
 .legend-section h3 {
     margin: 0 0 15px 0;
-    color: #2c3e50;
+    color: #927d55;
     font-size: 1.3rem;
     font-weight: 600;
 }
@@ -108,7 +108,7 @@
     gap: 8px;
     font-size: 1rem;
     font-weight: 500;
-    color: #2c3e50;
+    color: #927d55;
     background: transparent;
     /* no colored background behind label text */
     padding: 0;
@@ -124,7 +124,7 @@
 .legend-item.status-4,
 .legend-item.status-empty {
     background: transparent;
-    color: #2c3e50;
+    color: #927d55;
 }
 
 /* Keep the color-box compact; only this element is filled by status classes */
@@ -170,7 +170,7 @@
 }
 
 .time-label {
-    background: #34495e;
+    background: #927d55;
     color: white;
     padding: 8px 4px;
     text-align: center;
@@ -183,7 +183,7 @@
 }
 
 .time-label-header {
-    background: #2c3e50;
+    background: #927d55;
     font-weight: 700;
     font-size: 0.75rem;
 }
@@ -200,7 +200,7 @@
 }
 
 .heatmap-cell:hover {
-    border-color: #2c3e50;
+    border-color: #927d55;
     transform: scale(1.1);
     z-index: 10;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -239,7 +239,7 @@
 
 .stats-section h3 {
     margin: 0 0 20px 0;
-    color: #2c3e50;
+    color: #927d55;
     font-size: 1.3rem;
     font-weight: 600;
     text-align: center;
@@ -254,10 +254,10 @@
 .stat-item {
     text-align: center;
     padding: 20px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #927d55, #b89968);
     color: white;
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 4px 16px rgba(146, 125, 85, 0.2);
 }
 
 .stat-value {
@@ -296,7 +296,7 @@
 }
 
 .error-container p {
-    color: #7f8c8d;
+    color: #927d55;
     font-size: 1rem;
     margin-bottom: 20px;
 }
@@ -445,7 +445,7 @@
     margin: 0 0 20px 0;
     font-size: 1.4rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: #927d55;
     text-align: center;
     padding: 15px;
     background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
@@ -493,7 +493,7 @@
 }
 
 .error-container p {
-    color: #7f8c8d;
+    color: #927d55;
     font-size: 1rem;
     margin-bottom: 20px;
 }
@@ -642,7 +642,7 @@
     margin: 0 0 20px 0;
     font-size: 1.4rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: #927d55;
     text-align: center;
     padding: 15px;
     background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
