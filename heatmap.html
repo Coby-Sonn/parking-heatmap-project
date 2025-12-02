@@ -2,129 +2,128 @@
 <html lang="he" dir="rtl">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מפת חום חניה - צפייה בחניון</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/heatmap.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מפת חום חניה - צפייה בחניון</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/heatmap.css">
 </head>
 
 <body>
-    <div class="container">
-        <header class="heatmap-header">
-            <div class="nav-section">
-                <button id="back-btn" class="back-btn">
-                    ← חזרה לרשימת החניונים
-                </button>
-            </div>
+  <div class="container">
+    <header class="heatmap-header">
+      <div class="nav-section">
+        <button id="back-btn" class="back-btn">
+          ← חזרה לרשימת החניונים
+        </button>
+      </div>
 
-            <div class="lot-info">
-                <h1 id="lot-title">טוען...</h1>
-                <div class="lot-meta">
-                    <span id="lot-details">קוד: - | ID: -</span>
-                    <span id="data-status" class="data-status loading">טוען נתונים...</span>
-                </div>
-            </div>
-        </header>
+      <div class="lot-info">
+        <h1 id="lot-title">טוען...</h1>
+        <div class="lot-meta">
+          <span id="lot-details">קוד: - | ID: -</span>
+          <span id="data-status" class="data-status loading">טוען נתונים...</span>
+        </div>
+      </div>
+    </header>
 
-        <main>
-            <div class="legend-section">
-                <h3>מקרא</h3>
-                <div class="legend-items">
-                    <span class="legend-item">
-                        <span class="color-box status-1"></span>
-                        פנוי
-                    </span>
-                    <span class="legend-item">
-                        <span class="color-box status-2"></span>
-                        כמעט מלא
-                    </span>
-                    <span class="legend-item">
-                        <span class="color-box status-3"></span>
-                        מלא
-                    </span>
-                    <span class="legend-item">
-                        <span class="color-box status-4"></span>
-                        לא ידוע/כישלון באיסוף נתונים
-                    </span>
-                    <span class="legend-item">
-                        <span class="color-box status-empty"></span>
-                        ריק = אין נתונים
-                    </span>
-                </div>
-            </div>
+    <main>
+      <div class="legend-section">
+        <h3>מקרא</h3>
+        <div class="legend-items">
+          <span class="legend-item">
+            <span class="color-box status-1"></span>
+            פנוי
+          </span>
+          <span class="legend-item">
+            <span class="color-box status-2"></span>
+            כמעט מלא
+          </span>
+          <span class="legend-item">
+            <span class="color-box status-3"></span>
+            מלא
+          </span>
+          <span class="legend-item">
+            <span class="color-box status-4"></span>
+            לא ידוע/כישלון באיסוף נתונים
+          </span>
+          <span class="legend-item">
+            <span class="color-box status-empty"></span>
+            ריק = אין נתונים
+          </span>
+        </div>
+      </div>
 
-            <div class="heatmap-container" id="heatmap-container">
-                <div class="loading">
-                    <!-- lottie player: place your Lottie JSON at lotties/loader.json (or loader.lottie) -->
-                    <lottie-player class="lottie-player"
-                                   src="lotties/loader.json"
-                                   background="transparent"
-                                   speed="1"
-                                   loop
-                                   autoplay>
-                    </lottie-player>
-                     <p>טוען נתוני חניון...</p>
-                </div>
-            </div>
+      <div class="heatmap-container" id="heatmap-container">
+        <div class="loading">
+          <!-- lottie player: place your Lottie JSON at lotties/loader.json (or loader.lottie) -->
+          <lottie-player class="lottie-player" src="lotties/loader.json" background="transparent" speed="1" loop
+            autoplay>
+          </lottie-player>
+          <p>טוען נתוני חניון...</p>
+        </div>
+      </div>
 
-            <div class="stats-section" id="stats-section" style="display: none;">
-                <h3>סטטיסטיקות</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-value" id="total-records">-</span>
-                        <span class="stat-label">סך רשומות</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="days-coverage">-</span>
-                        <span class="stat-label">ימים בכיסוי</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="last-update">-</span>
-                        <span class="stat-label">עדכון אחרון</span>
-                    </div>
-                </div>
-            </div>
-        </main>
+      <div class="stats-section" id="stats-section" style="display: none;">
+        <h3>סטטיסטיקות</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-value" id="total-records">-</span>
+            <span class="stat-label">סך רשומות</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="days-coverage">-</span>
+            <span class="stat-label">ימים בכיסוי</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="last-update">-</span>
+            <span class="stat-label">עדכון אחרון</span>
+          </div>
+        </div>
+      </div>
+    </main>
 
-        <footer>
-            <p>נתונים מתעדכנים בזמן אמת • מפת חום מציגה נתונים לשבוע האחרון</p>
-        </footer>
-    </div>
+    <footer>
+      <p>נתונים מתעדכנים בזמן אמת • מפת חום מציגה נתונים לשבוע האחרון</p>
+    </footer>
+  </div>
 
-    <!-- Lottie web component -->
-    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/heatmap-viewer.js"></script>
-    <script>
+  <!-- Lottie web component -->
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/heatmap-viewer.js"></script>
+  <script>
     // lightweight runtime logging: fetch wrapper + DOM mutation observers for debugging duplicate rows
-    (function(){
+    (function () {
       const origFetch = window.fetch;
-      window.fetch = async function(...args){
+      window.fetch = async function (...args) {
         try {
           console.debug('[fetch] ->', args[0], args[1] || {});
           const res = await origFetch.apply(this, args);
           // clone and attempt to log body (safely)
           res.clone().text().then(text => {
             try { console.debug('[fetch] <-', args[0], JSON.parse(text)); }
-            catch(e) { console.debug('[fetch] <-', args[0], text.slice(0,500)); }
+            catch (e) { console.debug('[fetch] <-', args[0], text.slice(0, 500)); }
           }).catch(e => console.debug('[fetch] clone read failed', e));
           return res;
-        } catch(err) {
+        } catch (err) {
           console.error('[fetch] error', args[0], err);
           throw err;
         }
       };
 
-      function startObserver(selector, name){
+      function startObserver(selector, name) {
         const container = document.querySelector(selector);
-        if(!container) return console.debug('[observer] container not found:', selector);
+        if (!container) return console.debug('[observer] container not found:', selector);
         const mo = new MutationObserver(mutations => {
-          for(const m of mutations){
-            for(const node of m.addedNodes){
-              if(node.nodeType === 1){
-                console.debug(`[observer:${name}] added node:`, node, 'snippet:', (node.outerHTML||'').slice(0,400));
+          for (const m of mutations) {
+            for (const node of m.addedNodes) {
+              if (node.nodeType === 1) {
+                console.debug(`[observer:${name}] added node:`, node, 'snippet:', (node.outerHTML || '').slice(0, 400));
               }
             }
           }
@@ -133,8 +132,8 @@
         console.debug('[observer] started for', selector);
       }
 
-      function ready(fn){
-        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+      function ready(fn) {
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
         else fn();
       }
 
@@ -145,15 +144,15 @@
       });
 
       // helper callable from console: scans for obvious duplicate/day rows
-      window.__scanHeatmapForDuplicateRows = function(){
+      window.__scanHeatmapForDuplicateRows = function () {
         const grid = document.querySelector('.grid-container');
-        if(!grid) return console.debug('__scanHeatmapForDuplicateRows: grid not found');
+        if (!grid) return console.debug('__scanHeatmapForDuplicateRows: grid not found');
         const rows = Array.from(grid.children || []);
-        console.debug('__scanHeatmapForDuplicateRows rows count:', rows.length, rows.slice(0,20).map(r => r.getAttribute('data-day') || r.textContent.slice(0,60)));
+        console.debug('__scanHeatmapForDuplicateRows rows count:', rows.length, rows.slice(0, 20).map(r => r.getAttribute('data-day') || r.textContent.slice(0, 60)));
         return rows;
       };
     })();
-    </script>
+  </script>
 </body>
 
 </html>

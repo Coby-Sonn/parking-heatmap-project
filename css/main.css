@@ -6,10 +6,10 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: "Noto Sans Hebrew", Arial, Helvetica, sans-serif;
+    background: #F5EEDD;
     min-height: 100vh;
-    color: #333;
+    color: #927d55;
     direction: rtl;
 }
 
@@ -35,14 +35,14 @@ header {
 
 header h1 {
     font-size: 2.5rem;
-    color: #2c3e50;
+    color: #927d55;
     margin-bottom: 10px;
     font-weight: 700;
 }
 
 .subtitle {
     font-size: 1.2rem;
-    color: #7f8c8d;
+    color: #927d55;
     font-weight: 400;
 }
 
@@ -81,8 +81,8 @@ main {
 }
 
 #search-input:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #927d55;
+    box-shadow: 0 0 0 3px rgba(146, 125, 85, 0.1);
 }
 
 .clear-btn {
@@ -116,7 +116,7 @@ main {
 
 .stats {
     font-size: 1rem;
-    color: #7f8c8d;
+    color: #927d55;
     font-weight: 500;
 }
 
@@ -211,20 +211,25 @@ main {
     width: 40px;
     height: 40px;
     border: 4px solid #e1e5e9;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #927d55;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 15px;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loading p {
     font-size: 1.1rem;
-    color: #7f8c8d;
+    color: #927d55;
 }
 
 /* Lot card */
@@ -248,7 +253,7 @@ main {
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #927d55, #b89968);
     transform: scaleX(0);
     transition: transform 0.3s ease;
 }
@@ -256,7 +261,7 @@ main {
 .lot-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    border-color: #667eea;
+    border-color: #927d55;
 }
 
 .lot-card:hover::before {
@@ -277,14 +282,14 @@ main {
 .lot-name {
     font-size: 1.3rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: #927d55;
     margin-bottom: 8px;
     line-height: 1.3;
 }
 
 .lot-details {
     font-size: 0.9rem;
-    color: #7f8c8d;
+    color: #927d55;
     display: flex;
     justify-content: space-between;
     margin-bottom: 15px;
@@ -298,7 +303,7 @@ main {
 }
 
 .view-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #927d55, #b89968);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -312,7 +317,7 @@ main {
 
 .view-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 16px rgba(146, 125, 85, 0.3);
 }
 
 .select-btn {
@@ -360,12 +365,12 @@ main {
 
 .no-results h3 {
     font-size: 1.5rem;
-    color: #2c3e50;
+    color: #927d55;
     margin-bottom: 10px;
 }
 
 .no-results p {
-    color: #7f8c8d;
+    color: #927d55;
     font-size: 1rem;
 }
 
@@ -381,7 +386,7 @@ footer {
 }
 
 footer p {
-    color: #7f8c8d;
+    color: #927d55;
     font-size: 0.9rem;
 }
 
@@ -390,24 +395,24 @@ footer p {
     .container {
         padding: 15px;
     }
-    
+
     header h1 {
         font-size: 2rem;
     }
-    
+
     .subtitle {
         font-size: 1rem;
     }
-    
+
     .lots-grid {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 15px;
     }
-    
+
     .search-section {
         padding: 20px;
     }
-    
+
     #search-input {
         font-size: 1rem;
         padding: 12px 18px;
@@ -418,11 +423,11 @@ footer p {
     .lots-grid {
         grid-template-columns: 1fr;
     }
-    
+
     header {
         padding: 20px;
     }
-    
+
     header h1 {
         font-size: 1.8rem;
     }
