@@ -1,624 +1,435 @@
-// Heatmap viewer functionality
+// Heatmap Viewer (SMART + Prediction-Only)
+// -------------------------------------------------------------
+
 class HeatmapViewer {
     constructor() {
         this.lotName = null;
         this.lotCode = null;
         this.lotId = null;
+
         this.isComparison = false;
         this.lot1 = null;
         this.lot2 = null;
-        this.dataFetcher = null;
-        this.dataProcessor = null;
-        this.heatmapData = null;
-        this.comparisonData = null;
+
+        this.mode = 'mixed'; // "mixed" or "prediction"
+
+        this.dataFetcher = new DataFetcher();
+        this.dataProcessor = new DataProcessor();
+
+        this.rawData = null;
+        this.histData = null;
+
+        this.rawProcessed = null;
+        this.histProcessed = null;
+        this.currentProcessed = null;
 
         this.init();
     }
 
+    /* ------------------------------------------------------------
+     * INIT
+     * ------------------------------------------------------------ */
     async init() {
-        console.log('🎯 Initializing Heatmap Viewer...');
-
-        // Parse URL parameters
         this.parseUrlParams();
-
-        // Initialize data classes
-        this.dataFetcher = new DataFetcher();
-        this.dataProcessor = new DataProcessor();
-
-        // Set up event listeners
+        this.updateLotInfo();
         this.setupEventListeners();
 
-        // Update UI with lot info
-        this.updateLotInfo();
+        const ok = await this.dataFetcher.testConnection();
+        if (!ok) return this.showError('שגיאה בחיבור למסד הנתונים');
 
-        // Test connection first
-        const connected = await this.testConnection();
-        if (!connected) {
-            this.showError('לא ניתן להתחבר לבסיס הנתונים. אנא בדוק את החיבור לאינטרנט ונסה שוב.');
-            return;
-        }
-
-        // Load and display heatmap
         await this.loadHeatmap();
     }
 
+    /* ------------------------------------------------------------
+     * URL PARAM HANDLING
+     * ------------------------------------------------------------ */
     parseUrlParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        this.isComparison = urlParams.get('compare') === 'true';
+        const p = new URLSearchParams(window.location.search);
+
+        this.isComparison = p.get('compare') === 'true';
 
         if (this.isComparison) {
             this.lot1 = {
-                name: urlParams.get('lot1'),
-                code: urlParams.get('code1'),
-                id: urlParams.get('id1')
+                name: p.get('lot1'),
+                code: p.get('code1'),
+                id: p.get('id1')
             };
             this.lot2 = {
-                name: urlParams.get('lot2'),
-                code: urlParams.get('code2'),
-                id: urlParams.get('id2')
+                name: p.get('lot2'),
+                code: p.get('code2'),
+                id: p.get('id2')
             };
-
-            console.log('📋 Comparison Mode - URL Parameters:', {
-                lot1: this.lot1,
-                lot2: this.lot2
-            });
-
-            if (!this.lot1.name || !this.lot2.name) {
-                console.error('❌ Missing lot names for comparison');
-                this.showError('נתוני חניונים חסרים להשוואה. אנא חזור לדף הבחירה.');
-            }
         } else {
-            this.lotName = urlParams.get('lot');
-            this.lotCode = urlParams.get('code');
-            this.lotId = urlParams.get('id');
-
-            console.log('📋 Single Lot Mode - URL Parameters:', {
-                lotName: this.lotName,
-                lotCode: this.lotCode,
-                lotId: this.lotId
-            });
+            this.lotName = p.get('lot');
+            this.lotCode = p.get('code');
+            this.lotId = p.get('id');
 
             if (!this.lotName) {
-                console.error('❌ No lot name provided in URL');
-                this.showError('לא צוין שם חניון. אנא חזור לדף הבחירה.');
+                return this.showError('לא צוין חניון');
             }
         }
     }
 
+    /* ------------------------------------------------------------
+     * EVENT LISTENERS
+     * ------------------------------------------------------------ */
     setupEventListeners() {
-        // Back button
         const backBtn = document.getElementById('back-btn');
-        if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                window.location.href = 'index.html';
+        if (backBtn)
+            backBtn.addEventListener('click', () => window.location.href = 'index.html');
+
+        // Toggle switch for mixed vs prediction-only mode
+        const toggle = document.getElementById('prediction-toggle');
+        if (toggle) {
+            toggle.addEventListener('change', () => {
+                this.mode = toggle.checked ? 'prediction' : 'mixed';
+
+                if (this.isComparison && this.comparisonHist) {
+                    // Comparison mode: rebuild data based on mode
+                    if (this.mode === 'prediction') {
+                        this.comparisonData = {
+                            lot1: this.dataProcessor.buildPredictionOnlyMatrix(this.comparisonHist.lot1),
+                            lot2: this.dataProcessor.buildPredictionOnlyMatrix(this.comparisonHist.lot2)
+                        };
+                    } else {
+                        this.comparisonData = {
+                            lot1: this.dataProcessor.combineSmartHeatmap(this.comparisonRaw.lot1, this.comparisonHist.lot1),
+                            lot2: this.dataProcessor.combineSmartHeatmap(this.comparisonRaw.lot2, this.comparisonHist.lot2)
+                        };
+                    }
+                    this.renderComparisonHeatmap();
+                } else {
+                    // Single lot mode
+                    this.renderHeatmap();
+                }
             });
         }
 
-        // Keyboard navigation
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                window.location.href = 'index.html';
-            }
+            if (e.key === 'Escape') window.location.href = 'index.html';
         });
     }
 
+    /* ------------------------------------------------------------
+     * LOT TITLE
+     * ------------------------------------------------------------ */
     updateLotInfo() {
-        const titleElement = document.getElementById('lot-title');
-        const detailsElement = document.getElementById('lot-details');
+        const t = document.getElementById('lot-title');
+        const d = document.getElementById('lot-details');
 
-        if (this.isComparison && titleElement && this.lot1 && this.lot2) {
-            titleElement.textContent = `השוואה: ${this.lot1.name} vs ${this.lot2.name}`;
-            if (detailsElement) {
-                detailsElement.innerHTML = `
-                    <span>${this.lot1.name}: קוד ${this.lot1.code} | ID ${this.lot1.id}</span><br>
-                    <span>${this.lot2.name}: קוד ${this.lot2.code} | ID ${this.lot2.id}</span>
+        if (this.isComparison) {
+            if (t) t.textContent = `השוואה: ${this.lot1.name} מול ${this.lot2.name}`;
+            if (d) {
+                d.innerHTML = `
+                    <span>${this.lot1.name}: קוד ${this.lot1.code}</span><br>
+                    <span>${this.lot2.name}: קוד ${this.lot2.code}</span>
                 `;
             }
-        } else if (titleElement && this.lotName) {
-            titleElement.textContent = `מפת חום - ${this.lotName}`;
-            if (detailsElement && this.lotCode && this.lotId) {
-                detailsElement.textContent = `קוד: ${this.lotCode} | ID: ${this.lotId}`;
-            }
+        } else {
+            if (t) t.textContent = `מפת חום – ${this.lotName}`;
+            if (d) d.textContent = `קוד: ${this.lotCode} | ID: ${this.lotId}`;
         }
     }
 
-    async testConnection() {
-        try {
-            this.updateDataStatus('בודק חיבור...', 'loading');
-            const connected = await this.dataFetcher.testConnection();
+    /* ------------------------------------------------------------
+     * STATUS BAR
+     * ------------------------------------------------------------ */
+    updateDataStatus(msg, type) {
+        const el = document.getElementById('data-status');
+        if (!el) return;
 
-            if (connected) {
-                this.updateDataStatus('מחובר', 'success');
-                return true;
-            } else {
-                this.updateDataStatus('שגיאת חיבור', 'error');
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ Connection test failed:', error);
-            this.updateDataStatus('שגיאת חיבור', 'error');
-            return false;
-        }
+        el.textContent = msg;
+        el.className = `data-status ${type}`;
     }
 
+    /* ------------------------------------------------------------
+     * LOAD HEATMAP (single OR comparison)
+     * ------------------------------------------------------------ */
     async loadHeatmap() {
-        try {
-            if (this.isComparison) {
-                await this.loadComparisonHeatmap();
-            } else {
-                await this.loadSingleHeatmap();
-            }
-        } catch (error) {
-            console.error('❌ Error loading heatmap:', error);
-            const userMessage = ErrorHandler.handle(error, 'loadHeatmap');
-            this.showError(userMessage);
-            this.updateDataStatus('שגיאה בטעינה', 'error');
+        if (this.isComparison) {
+            return this.loadComparisonHeatmap();
+        } else {
+            return this.loadSingleHeatmap();
         }
     }
 
+    /* ------------------------------------------------------------
+     * SINGLE LOT MODE
+     * ------------------------------------------------------------ */
     async loadSingleHeatmap() {
-        console.log(`🔄 Loading heatmap for: ${this.lotName}`);
-
         this.updateDataStatus('טוען נתונים...', 'loading');
 
-        // Show loading in container
         const container = document.getElementById('heatmap-container');
         LoadingManager.show(container, `טוען נתוני ${this.lotName}...`);
 
-        // Fetch data with pagination (increased to 10 days to include Friday night)
-        const rawData = await this.dataFetcher.fetchLotData(this.lotName, 10);
-
-        if (!rawData || rawData.length === 0) {
-            throw new Error('לא נמצאו נתונים עבור החניון הנבחר');
-        }
-
-        this.updateDataStatus('מעבד נתונים...', 'loading');
-
-        // Process data into heatmap format
-        this.heatmapData = this.dataProcessor.processHeatmapData(rawData, this.lotName);
-
-        console.log('✅ Heatmap data processed:', this.heatmapData);
-
-        // Render heatmap
-        this.renderHeatmap();
-
-        // Show statistics
-        this.showStatistics();
-
-        this.updateDataStatus(`${rawData.length} רשומות נטענו`, 'success');
-    }
-
-    async loadComparisonHeatmap() {
-        console.log(`🔄 Loading comparison between: ${this.lot1.name} and ${this.lot2.name}`);
-
-        this.updateDataStatus('טוען נתוני השוואה...', 'loading');
-
-        const container = document.getElementById('heatmap-container');
-        LoadingManager.show(container, `טוען השוואה בין ${this.lot1.name} ל-${this.lot2.name}...`);
-
-        // Fetch data for both lots (increased to 10 days to include Friday night)
-        const [rawData1, rawData2] = await Promise.all([
-            this.dataFetcher.fetchLotData(this.lot1.name, 10),
-            this.dataFetcher.fetchLotData(this.lot2.name, 10)
+        const [rawRows, histRows] = await Promise.all([
+            this.dataFetcher.fetchLotData(this.lotName, 10),
+            this.dataFetcher.fetchLotHistoricalData(this.lotName)
         ]);
 
-        if (!rawData1 || rawData1.length === 0 || !rawData2 || rawData2.length === 0) {
-            throw new Error('לא נמצאו נתונים מספיקים עבור אחד מהחניונים');
-        }
+        this.rawData = rawRows;
+        this.histData = histRows;
 
-        this.updateDataStatus('מעבד נתונים להשוואה...', 'loading');
+        // Process
+        const rawProcessed =
+            rawRows.length > 0
+                ? this.dataProcessor.processHeatmapData(rawRows, this.lotName)
+                : this.dataProcessor.createEmptyHeatmap(this.lotName);
 
-        // Process data for both lots
-        const heatmapData1 = this.dataProcessor.processHeatmapData(rawData1, this.lot1.name);
-        const heatmapData2 = this.dataProcessor.processHeatmapData(rawData2, this.lot2.name);
+        const histProcessed =
+            histRows.length > 0
+                ? this.dataProcessor.processHistoricalHeatmapData(histRows, this.lotName)
+                : this.dataProcessor.createEmptyHeatmap(this.lotName);
 
+        this.rawProcessed = rawProcessed;
+        this.histProcessed = histProcessed;
+
+        // Default dataset (smart mix)
+        this.currentProcessed =
+            this.dataProcessor.combineSmartHeatmap(rawProcessed, histProcessed);
+
+        this.updateDataStatus(
+            `${rawRows.length} רשומות חיות | ${histRows.length} רשומות היסטוריות`,
+            'success'
+        );
+
+        LoadingManager.hide(container);
+        this.renderHeatmap();
+        this.showStatistics();
+    }
+
+    /* ------------------------------------------------------------
+     * COMPARISON MODE
+     * ------------------------------------------------------------ */
+    async loadComparisonHeatmap() {
+        this.updateDataStatus('טוען השוואת חניונים...', 'loading');
+
+        // Fetch both raw and historical data for both lots
+        const [raw1, raw2, hist1, hist2] = await Promise.all([
+            this.dataFetcher.fetchLotData(this.lot1.name, 10),
+            this.dataFetcher.fetchLotData(this.lot2.name, 10),
+            this.dataFetcher.fetchLotHistoricalData(this.lot1.name),
+            this.dataFetcher.fetchLotHistoricalData(this.lot2.name)
+        ]);
+
+        // Process raw data
+        const rawP1 = raw1.length > 0
+            ? this.dataProcessor.processHeatmapData(raw1, this.lot1.name)
+            : this.dataProcessor.createEmptyHeatmap(this.lot1.name);
+        const rawP2 = raw2.length > 0
+            ? this.dataProcessor.processHeatmapData(raw2, this.lot2.name)
+            : this.dataProcessor.createEmptyHeatmap(this.lot2.name);
+
+        // Process historical data
+        const histP1 = hist1.length > 0
+            ? this.dataProcessor.processHistoricalHeatmapData(hist1, this.lot1.name)
+            : this.dataProcessor.createEmptyHeatmap(this.lot1.name);
+        const histP2 = hist2.length > 0
+            ? this.dataProcessor.processHistoricalHeatmapData(hist2, this.lot2.name)
+            : this.dataProcessor.createEmptyHeatmap(this.lot2.name);
+
+        // Store for toggle switching
+        this.comparisonRaw = { lot1: rawP1, lot2: rawP2 };
+        this.comparisonHist = { lot1: histP1, lot2: histP2 };
+
+        // Default: combined smart heatmap
         this.comparisonData = {
-            lot1: heatmapData1,
-            lot2: heatmapData2
+            lot1: this.dataProcessor.combineSmartHeatmap(rawP1, histP1),
+            lot2: this.dataProcessor.combineSmartHeatmap(rawP2, histP2)
         };
 
-        console.log('✅ Comparison data processed:', this.comparisonData);
+        this.updateDataStatus(
+            `${raw1.length + raw2.length} רשומות חיות | ${hist1.length + hist2.length} רשומות היסטוריות`,
+            'success'
+        );
 
-        // Render comparison heatmap
         this.renderComparisonHeatmap();
-
-        // Show comparison statistics
-        this.showComparisonStatistics();
-
-        this.updateDataStatus(`${rawData1.length + rawData2.length} רשומות נטענו`, 'success');
     }
 
+    /* ------------------------------------------------------------
+     * RENDER SINGLE LOT
+     * ------------------------------------------------------------ */
     renderHeatmap() {
         const container = document.getElementById('heatmap-container');
-        if (!container || !this.heatmapData) return;
+        if (!container || !this.rawProcessed || !this.histProcessed) return;
 
-        console.log('🎨 Rendering heatmap...');
-
-        // Clear container
         container.innerHTML = '';
 
-        // Create grid container
+        // Determine dataset based on mode
+        let matrix;
+        if (this.mode === 'prediction') {
+            matrix = this.dataProcessor.buildPredictionOnlyMatrix(this.histProcessed);
+        } else {
+            matrix = this.dataProcessor.combineSmartHeatmap(
+                this.rawProcessed,
+                this.histProcessed
+            );
+        }
+
+        this.currentProcessed = matrix;
+
         const grid = document.createElement('div');
         grid.className = 'grid-container';
         grid.style.gridTemplateColumns = `60px repeat(${CONFIG.SLOTS_PER_DAY}, 1fr)`;
 
-        // Add header row
         this.addHeaderRow(grid);
-
-        // Add data rows
-        this.addDataRows(grid);
+        this.addDataRows(grid, matrix);
 
         container.appendChild(grid);
-
-        console.log('✅ Heatmap rendered successfully');
     }
 
+    /* ------------------------------------------------------------
+     * GRID HEADER
+     * ------------------------------------------------------------ */
     addHeaderRow(grid) {
-        // Corner cell
-        const cornerCell = document.createElement('div');
-        cornerCell.className = 'time-label time-label-header';
-        cornerCell.textContent = 'יום / שעה';
-        grid.appendChild(cornerCell);
+        const corner = document.createElement('div');
+        corner.className = 'time-label time-label-header';
+        corner.textContent = 'יום / שעה';
+        grid.appendChild(corner);
 
-        // Time labels (every 6 slots = 2 hours)
         for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s += 6) {
-            const timeLabel = getTimeLabel(s);
-            const span = document.createElement('div');
-            span.className = 'time-label time-label-header';
-            span.style.gridColumn = 'span 6';
-            span.textContent = timeLabel;
-            grid.appendChild(span);
+            const label = document.createElement('div');
+            label.className = 'time-label time-label-header';
+            label.style.gridColumn = 'span 6';
+            label.textContent = getTimeLabel(s);
+            grid.appendChild(label);
         }
     }
 
-    addDataRows(grid) {
+    /* ------------------------------------------------------------
+     * ADD HEATMAP ROWS
+     * ------------------------------------------------------------ */
+    addDataRows(grid, data) {
         for (let d = 0; d < 7; d++) {
-            // Day label
             const dayLabel = document.createElement('div');
             dayLabel.className = 'time-label';
             dayLabel.textContent = CONFIG.DAYS[d];
             grid.appendChild(dayLabel);
 
-            // Determine if we should use interpolated data or render as empty based on sample count
-            const minSamples = (window.__HEATMAP_CONFIG && window.__HEATMAP_CONFIG.minSamplesToInterpolate) || 3;
-            const dayCount = (this.heatmapData && Array.isArray(this.heatmapData.dayDistribution))
-                ? this.heatmapData.dayDistribution[d] : null;
-            let dayData;
-            if (dayCount !== null && dayCount < minSamples) {
-                console.warn(`[render] ⚠️ Skipping interpolation for day ${d} (${CONFIG.DAYS[d]}): only ${dayCount} samples (< ${minSamples}) — rendering as empty`);
-                dayData = Array(CONFIG.SLOTS_PER_DAY).fill(0);
-            } else {
-                dayData = (this.heatmapData && Array.isArray(this.heatmapData.interpolated) && Array.isArray(this.heatmapData.interpolated[d]))
-                    ? this.heatmapData.interpolated[d]
-                    : Array(CONFIG.SLOTS_PER_DAY).fill(0);
-            }
+            const row = data.interpolated[d];
 
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
-                const value = dayData[s];
+                const val = row[s];
                 const cell = document.createElement('div');
-                cell.className = `heatmap-cell ${value === 0 ? 'status-empty' : `status-${value}`}`;
 
-                // Highlight current time
-                if (this.heatmapData.currentDay === d && this.heatmapData.currentSlot === s) {
+                cell.className =
+                    val === 0 ? 'heatmap-cell status-empty' : `heatmap-cell status-${val}`;
+
+                // highlight current slot
+                if (data.currentDay === d && data.currentSlot === s) {
                     cell.classList.add('current-time');
                 }
 
-                // Add tooltip
-                const timeLabel = getTimeLabel(s);
-                const dayName = CONFIG.DAYS[d];
-                const statusText = this.getStatusText(value);
-                cell.title = `${this.lotName} - ${dayName} ${timeLabel} - ${statusText}`;
+                const time = getTimeLabel(s);
+                const isFuture =
+                    (d > data.currentDay) ||
+                    (d === data.currentDay && s > data.currentSlot);
+
+                if (this.mode === 'prediction') {
+                    cell.title = `תחזית: ${CONFIG.DAYS[d]} ${time} – ${this.getStatusText(val)}`;
+                } else {
+                    if (isFuture) {
+                        cell.title = `תחזית: ${CONFIG.DAYS[d]} ${time} – ${this.getStatusText(val)}`;
+                    } else {
+                        cell.title = `נמדד: ${CONFIG.DAYS[d]} ${time} – ${this.getStatusText(val)}`;
+                    }
+                }
 
                 grid.appendChild(cell);
-            }
-
-            try {
-                const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-                // after attaching row for day `d`:
-                console.debug(`[render] Day row created -> index:${d} (${dayNames[d]})`, {
-                    // note: grid.lastChild is the last appended cell; we include a short debug snapshot instead
-                    dataForDay: dayData,
-                    rawCount: (window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest && window.__HEATMAP_DEBUG.latest.dayDistribution)
-                        ? window.__HEATMAP_DEBUG.latest.dayDistribution[d]
-                        : 'unknown'
-                });
-
-                // count colored cells in the row we just appended by checking the last (24) children
-                const children = Array.from(grid.children);
-                const startIndex = Math.max(0, children.length - CONFIG.SLOTS_PER_DAY);
-                const recentCells = children.slice(startIndex);
-                const coloredCellsCount = recentCells.filter(el => el.classList && el.classList.contains && (
-                    el.classList.contains('status-1') ||
-                    el.classList.contains('status-2') ||
-                    el.classList.contains('status-3') ||
-                    el.classList.contains('status-4')
-                )).length;
-                console.debug(`[render] Day ${d} rendered colored cells:`, coloredCellsCount);
-
-                // quick sanity warning: if rawCount is very small but row has many colored cells, log a warning
-                const rawCount = window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest && window.__HEATMAP_DEBUG.latest.dayDistribution
-                    ? window.__HEATMAP_DEBUG.latest.dayDistribution[d] : null;
-                if (rawCount !== null && rawCount <= 2 && coloredCellsCount > 6) {
-                    console.warn(`[render][warning] Day ${d} (${dayNames[d]}) has only ${rawCount} raw records but rendered ${coloredCellsCount} colored cells — investigate interpolation/mapping.`);
-                }
-            } catch (e) {
-                console.debug('[render] debug logging failed', e);
             }
         }
     }
 
+    /* ------------------------------------------------------------
+     * COMPARISON MODE
+     * ------------------------------------------------------------ */
     renderComparisonHeatmap() {
         const container = document.getElementById('heatmap-container');
-        if (!container || !this.comparisonData) return;
-
-        console.log('🎨 Rendering comparison heatmap...');
-
-        // Clear container
         container.innerHTML = '';
 
-        // Create comparison container
-        const comparisonContainer = document.createElement('div');
-        comparisonContainer.className = 'comparison-container';
+        const wrap = document.createElement('div');
+        wrap.className = 'comparison-container';
 
-        // Create heatmap for lot 1
-        const heatmap1 = this.createSingleHeatmap(this.comparisonData.lot1, this.lot1.name, '1');
+        wrap.appendChild(this.makeSingleComparison(this.comparisonData.lot1, this.lot1.name, '1'));
+        wrap.appendChild(this.makeSingleComparison(this.comparisonData.lot2, this.lot2.name, '2'));
 
-        // Create heatmap for lot 2
-        const heatmap2 = this.createSingleHeatmap(this.comparisonData.lot2, this.lot2.name, '2');
-
-        comparisonContainer.appendChild(heatmap1);
-        comparisonContainer.appendChild(heatmap2);
-        container.appendChild(comparisonContainer);
-
-        console.log('✅ Comparison heatmap rendered successfully');
+        container.appendChild(wrap);
     }
 
-    createSingleHeatmap(heatmapData, lotName, lotNumber) {
-        const wrapper = document.createElement('div');
-        wrapper.className = `heatmap-wrapper lot-${lotNumber}`;
+    makeSingleComparison(data, name, number) {
+        const box = document.createElement('div');
+        box.className = 'heatmap-wrapper';
 
         const title = document.createElement('h3');
-        title.className = 'heatmap-title';
-        title.textContent = `${lotNumber}. ${lotName}`;
-        wrapper.appendChild(title);
+        title.textContent = `${number}. ${name}`;
+        box.appendChild(title);
 
         const grid = document.createElement('div');
         grid.className = 'grid-container';
         grid.style.gridTemplateColumns = `60px repeat(${CONFIG.SLOTS_PER_DAY}, 1fr)`;
 
-        // Add header row
-        this.addHeaderRowToGrid(grid);
+        this.addHeaderRow(grid);
+        this.addDataRows(grid, data);
 
-        // Add data rows for this specific heatmap
-        this.addDataRowsToGrid(grid, heatmapData, lotName);
-
-        wrapper.appendChild(grid);
-        return wrapper;
+        box.appendChild(grid);
+        return box;
     }
 
-    addHeaderRowToGrid(grid) {
-        // Corner cell
-        const cornerCell = document.createElement('div');
-        cornerCell.className = 'time-label time-label-header';
-        cornerCell.textContent = 'יום / שעה';
-        grid.appendChild(cornerCell);
-
-        // Time labels (every 6 slots = 2 hours)
-        for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s += 6) {
-            const timeLabel = getTimeLabel(s);
-            const span = document.createElement('div');
-            span.className = 'time-label time-label-header';
-            span.style.gridColumn = 'span 6';
-            span.textContent = timeLabel;
-            grid.appendChild(span);
-        }
-    }
-
-    addDataRowsToGrid(grid, heatmapData, lotName) {
-        for (let d = 0; d < 7; d++) {
-            // Day label
-            const dayLabel = document.createElement('div');
-            dayLabel.className = 'time-label';
-            dayLabel.textContent = CONFIG.DAYS[d];
-            grid.appendChild(dayLabel);
-
-            // Determine if we should use interpolated data or render as empty based on sample count
-            const minSamples = (window.__HEATMAP_CONFIG && window.__HEATMAP_CONFIG.minSamplesToInterpolate) || 3;
-            const dayCount = (heatmapData && Array.isArray(heatmapData.dayDistribution))
-                ? heatmapData.dayDistribution[d] : null;
-            let dayData;
-            if (dayCount !== null && dayCount < minSamples) {
-                console.warn(`[render] ⚠️ Skipping interpolation for day ${d} (${CONFIG.DAYS[d]}) in comparison view: only ${dayCount} samples (< ${minSamples}) — rendering as empty`);
-                dayData = Array(CONFIG.SLOTS_PER_DAY).fill(0);
-            } else {
-                dayData = (heatmapData && Array.isArray(heatmapData.interpolated) && Array.isArray(heatmapData.interpolated[d]))
-                    ? heatmapData.interpolated[d]
-                    : Array(CONFIG.SLOTS_PER_DAY).fill(0);
-            }
-
-            for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
-                const value = dayData[s];
-                const cell = document.createElement('div');
-                cell.className = `heatmap-cell ${value === 0 ? 'status-empty' : `status-${value}`}`;
-
-                // Highlight current time
-                if (heatmapData.currentDay === d && heatmapData.currentSlot === s) {
-                    cell.classList.add('current-time');
-                }
-
-                // Add tooltip
-                const timeLabel = getTimeLabel(s);
-                const dayName = CONFIG.DAYS[d];
-                const statusText = this.getStatusText(value);
-                cell.title = `${lotName} - ${dayName} ${timeLabel} - ${statusText}`;
-
-                grid.appendChild(cell);
-            }
-
-            // Optional debug: log per-row summary in comparison view
-            try {
-                const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-                const children = Array.from(grid.children);
-                const startIndex = Math.max(0, children.length - CONFIG.SLOTS_PER_DAY);
-                const recentCells = children.slice(startIndex);
-                const coloredCellsCount = recentCells.filter(el => el.classList && el.classList.contains && (
-                    el.classList.contains('status-1') ||
-                    el.classList.contains('status-2') ||
-                    el.classList.contains('status-3') ||
-                    el.classList.contains('status-4')
-                )).length;
-                const rawCount = heatmapData && heatmapData.dayDistribution ? heatmapData.dayDistribution[d] : 'unknown';
-                console.debug(`[render][compare] Day ${d} (${dayNames[d]}): raw=${rawCount} | colored=${coloredCellsCount}`);
-            } catch (e) {
-                console.debug('[render][compare] debug logging failed', e);
-            }
-        }
-    }
-
-    showComparisonStatistics() {
-        const statsSection = document.getElementById('stats-section');
-        if (!statsSection || !this.comparisonData) return;
-
-        // Calculate combined statistics
-        const totalRecords = this.comparisonData.lot1.totalRecords + this.comparisonData.lot2.totalRecords;
-        const daysCoverage1 = this.comparisonData.lot1.dayDistribution.filter(count => count > 0).length;
-        const daysCoverage2 = this.comparisonData.lot2.dayDistribution.filter(count => count > 0).length;
-        const lastUpdate = new Date().toLocaleString('he-IL');
-
-        // Update DOM with comparison stats
-        const totalElement = document.getElementById('total-records');
-        const daysElement = document.getElementById('days-coverage');
-        const updateElement = document.getElementById('last-update');
-
-        if (totalElement) totalElement.textContent = totalRecords.toLocaleString();
-        if (daysElement) daysElement.textContent = `${Math.max(daysCoverage1, daysCoverage2)}`;
-        if (updateElement) updateElement.textContent = lastUpdate;
-
-        // Show section
-        statsSection.style.display = 'block';
-
-        console.log('📊 Comparison statistics displayed:', {
-            totalRecords,
-            daysCoverage1,
-            daysCoverage2,
-            lastUpdate
-        });
-    }
-
+    /* ------------------------------------------------------------
+     * HUMAN LABELS
+     * ------------------------------------------------------------ */
     getStatusText(code) {
-        const statusMap = {
-            0: 'אין נתונים',
+        return {
+            0: 'אין נתון',
             1: 'פנוי',
             2: 'כמעט מלא',
             3: 'מלא',
-            4: 'לא ידוע/כישלון'
-        };
-        return statusMap[code] || `קוד ${code}`;
+            4: 'לא ידוע'
+        }[code] || `קוד ${code}`;
     }
 
+    /* ------------------------------------------------------------
+     * STATS
+     * ------------------------------------------------------------ */
     showStatistics() {
-        const statsSection = document.getElementById('stats-section');
-        if (!statsSection || !this.heatmapData) return;
+        const section = document.getElementById('stats-section');
+        if (!section) return;
 
-        // Calculate statistics
-        const totalRecords = this.heatmapData.totalRecords;
-        const daysCoverage = this.heatmapData.dayDistribution.filter(count => count > 0).length;
-        const lastUpdate = new Date().toLocaleString('he-IL');
+        const total = this.rawData.length + this.histData.length;
+        const days = this.rawProcessed.dayDistribution.filter(n => n > 0).length;
 
-        // Update DOM
-        const totalElement = document.getElementById('total-records');
-        const daysElement = document.getElementById('days-coverage');
-        const updateElement = document.getElementById('last-update');
+        document.getElementById('total-records').textContent = total;
+        document.getElementById('days-coverage').textContent = days;
+        document.getElementById('last-update').textContent =
+            new Date().toLocaleString('he-IL');
 
-        if (totalElement) totalElement.textContent = totalRecords.toLocaleString();
-        if (daysElement) daysElement.textContent = daysCoverage;
-        if (updateElement) updateElement.textContent = lastUpdate;
-
-        // Show section
-        statsSection.style.display = 'block';
-
-        console.log('📊 Statistics displayed:', {
-            totalRecords,
-            daysCoverage,
-            lastUpdate
-        });
+        section.style.display = 'block';
     }
 
-    updateDataStatus(message, type) {
-        const statusElement = document.getElementById('data-status');
-        if (!statusElement) return;
+    /* ------------------------------------------------------------
+     * ERROR DISPLAY
+     * ------------------------------------------------------------ */
+    showError(msg) {
+        const c = document.getElementById('heatmap-container');
+        if (!c) return;
 
-        statusElement.textContent = message;
-        statusElement.className = `data-status ${type}`;
-    }
-
-    showError(message) {
-        const container = document.getElementById('heatmap-container');
-        if (!container) return;
-
-        container.innerHTML = `
+        c.innerHTML = `
             <div class="error-container">
                 <div class="error-icon">⚠️</div>
-                <h3>שגיאה בטעינת הנתונים</h3>
-                <p>${message}</p>
-                <button class="retry-btn" onclick="location.reload()">נסה שוב</button>
-                <button class="back-btn" onclick="window.location.href='index.html'">חזרה לרשימת החניונים</button>
+                <h3>שגיאה</h3>
+                <p>${msg}</p>
+                <button onclick="location.reload()">נסה שוב</button>
             </div>
         `;
     }
 }
 
-// Initialize when DOM is ready
+/* ------------------------------------------------------------
+ * ON DOCUMENT READY
+ * ------------------------------------------------------------ */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Initializing Heatmap Viewer...');
+    if (!window.supabase)
+        return console.error('❌ Supabase not loaded');
 
-    // Check if required libraries are loaded
-    if (!window.supabase) {
-        console.error('❌ Supabase library not loaded');
-        document.getElementById('heatmap-container').innerHTML = `
-            <div class="error-container">
-                <div class="error-icon">⚠️</div>
-                <h3>שגיאה בטעינת המערכת</h3>
-                <p>ספריות נדרשות לא נטענו. אנא רענן את הדף.</p>
-            </div>
-        `;
-        return;
-    }
-
-    if (!window.DataFetcher || !window.DataProcessor) {
-        console.error('❌ Utility classes not loaded');
-        document.getElementById('heatmap-container').innerHTML = `
-            <div class="error-container">
-                <div class="error-icon">⚠️</div>
-                <h3>שגיאה בטעינת המערכת</h3>
-                <p>כלי עזר לא נטענו. אנא רענן את הדף.</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Initialize heatmap viewer
     new HeatmapViewer();
 });
-
-// Add a global helper to validate the rendered grid vs the processed distribution:
-try {
-    window.__validateHeatmapRows = function () {
-        const grid = document.querySelector('.grid-container');
-        if (!grid) return console.debug('__validateHeatmapRows: .grid-container not found');
-        const rows = Array.from(grid.children);
-        const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-        const processed = window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest;
-        rows.forEach((rowEl, idx) => {
-            const colored = rowEl.querySelectorAll ? rowEl.querySelectorAll('.heatmap-cell.status-1, .heatmap-cell.status-2, .heatmap-cell.status-3, .heatmap-cell.status-4').length : 0;
-            const processedCount = processed && processed.dayDistribution ? processed.dayDistribution[idx] : 'unknown';
-            console.debug(`Row ${idx} (${dayNames[idx]}): coloredCells=${colored} | processedRaw=${processedCount}`);
-            if (processedCount !== 'unknown' && processedCount <= 2 && colored > 6) {
-                console.warn(`→ Suspicious: day ${idx} (${dayNames[idx]}) has ${processedCount} raw records but ${colored} colored cells rendered.`);
-            }
-        });
-        return { rowsCount: rows.length };
-    };
-} catch (e) {
-    console.debug('Could not install __validateHeatmapRows helper', e);
-}

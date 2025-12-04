@@ -1,104 +1,36 @@
-// Shared utilities for data fetching and processing
+/* ========================================================================
+ * utils.js — Clean Hybrid Version (SMART + PREDICTION-ONLY Support)
+ * ======================================================================*/
 
-// =================================================================
-// 1. CONFIGURATION
-// =================================================================
+/* ---------------------------------------------------------------
+ * 1. CONFIG
+ * -------------------------------------------------------------*/
 const CONFIG = {
     SUPABASE_URL: 'https://shmtkxshrsrkwovjokqa.supabase.co',
     SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNobXRreHNocnNya3dvdmpva3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDQ4MjAsImV4cCI6MjA3NzgyMDgyMH0.oENVmyU00Uy2N6gxir54yu4T0Jw_Jay2tITeQW3QfqE',
     TABLE_NAME: 'parking_consistency_data',
-    SLOTS_PER_DAY: 72,
+    HEATMAP_VIEW_NAME: 'parking_heatmap_3week',
+    SLOTS_PER_DAY: 72, // 20-min slots
     DAYS: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
-    BATCH_SIZE: 1000, // For pagination
+    BATCH_SIZE: 1000,
     MAX_RETRIES: 3
 };
 
-// add near top of utils.js (once): default config for interpolation threshold
+// Configurable interpolation behavior
 window.__HEATMAP_CONFIG = window.__HEATMAP_CONFIG || {};
-// change this value to alter when interpolation is allowed (e.g. 3 samples minimum)
-window.__HEATMAP_CONFIG.minSamplesToInterpolate = window.__HEATMAP_CONFIG.minSamplesToInterpolate ?? 3;
+window.__HEATMAP_CONFIG.minSamplesToInterpolate =
+    window.__HEATMAP_CONFIG.minSamplesToInterpolate ?? 3;
 
-// ---- Insert near top of utils.js (config + helpers) ----
-window.__HEATMAP_CONFIG = window.__HEATMAP_CONFIG || {};
-// minimum samples to run the full interpolation algorithm (tune as needed)
-window.__HEATMAP_CONFIG.minSamplesForFullInterpolation = window.__HEATMAP_CONFIG.minSamplesForFullInterpolation ?? 3;
-// how many neighboring slots to fill around a sparse sample (e.g. 1 = sample slot +/- 1)
-window.__HEATMAP_CONFIG.sparseSampleSpread = window.__HEATMAP_CONFIG.sparseSampleSpread ?? 1;
-// target timezone for local day mapping
+/* ---------------------------------------------------------------
+ * 2. TIME HELPERS
+ * -------------------------------------------------------------*/
 const HEATMAP_TIMEZONE = 'Asia/Jerusalem';
 
-// returns { year, month, day, hour, minute, second, weekdayIndex }
-// weekdayIndex: 0 = Sunday, ... 6 = Saturday
-function tzPartsForISO(isoString) {
-    const date = new Date(isoString);
-    const f = new Intl.DateTimeFormat('en-US', {
-        timeZone: HEATMAP_TIMEZONE,
-        year: 'numeric', month: 'numeric', day: 'numeric',
-        hour: 'numeric', minute: 'numeric', second: 'numeric',
-        hour12: false,
-        weekday: 'short'
-    });
-    const parts = f.formatToParts(date);
-    const map = {};
-    for (const p of parts) {
-        if (p.type !== 'literal') map[p.type] = p.value;
-    }
-    const year = Number(map.year);
-    const month = Number(map.month);
-    const day = Number(map.day);
-    const hour = Number(map.hour);
-    const minute = Number(map.minute || 0);
-    const second = Number(map.second || 0);
-    // weekday short e.g. Sun, Mon, Tue
-    const wk = (map.weekday || '').toLowerCase();
-    const wkMap = { 'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6 };
-    const weekdayIndex = wkMap[wk] !== undefined ? wkMap[wk] : (new Date(isoString)).getDay();
-    return { year, month, day, hour, minute, second, weekdayIndex };
-}
-
-// Map a sample (with hour/minute) to a slot index 0..slotsPerDay-1
-function mapSampleToSlot(slotsPerDay, sample) {
-    const slotsPerHour = slotsPerDay / 24;
-    const hour = Number(sample.hour || 0);
-    const minute = Number(sample.minute || 0);
-    const slotMinutes = 60 / slotsPerHour;
-    const intraHour = Math.floor(minute / slotMinutes);
-    let slot = (hour * slotsPerHour) + intraHour;
-    slot = Math.max(0, Math.min(slotsPerDay - 1, slot));
-    return slot;
-}
-
-// expose helpers for console debugging
-window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
-window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
-window.__HEATMAP_DEBUG.mapSampleToSlot = mapSampleToSlot;
-
-// ---- End helpers ----
-
-// =================================================================
-// 2. SUPABASE CLIENT
-// =================================================================
-let supabaseClient = null;
-
-function getSupabaseClient() {
-    if (!supabaseClient && window.supabase) {
-        supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-        console.log('✅ Supabase client initialized');
-    }
-    return supabaseClient;
-}
-
-// =================================================================
-// 3. TIMEZONE UTILITIES
-// =================================================================
 function getLocalDayHourMinute(utcString) {
-    // 🔧 FIX: Use proper timezone conversion instead of hard-coded offset
-    // This automatically handles daylight saving time transitions
     const utcDate = new Date(utcString);
 
-    // Use Intl.DateTimeFormat to properly convert to Israel timezone
-    const israelDateTime = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Jerusalem',
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: HEATMAP_TIMEZONE,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -107,20 +39,17 @@ function getLocalDayHourMinute(utcString) {
         hour12: false
     }).formatToParts(utcDate);
 
-    const dateMap = {};
-    israelDateTime.forEach(part => {
-        if (part.type !== 'literal') {
-            dateMap[part.type] = parseInt(part.value);
-        }
-    });
+    const map = {};
+    for (const p of parts) {
+        if (p.type !== 'literal') map[p.type] = parseInt(p.value, 10);
+    }
 
-    // Create a date in Israel timezone to get the correct day of week
-    const israelDate = new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute);
+    const date = new Date(map.year, map.month - 1, map.day, map.hour, map.minute);
 
     return {
-        day: israelDate.getDay(),
-        hour: dateMap.hour,
-        minute: dateMap.minute,
+        day: date.getDay(),
+        hour: map.hour,
+        minute: map.minute
     };
 }
 
@@ -129,313 +58,293 @@ function getSlot(hour, minute) {
 }
 
 function getTimeLabel(slot) {
-    const m = slot * 20;
-    const h = String(Math.floor(m / 60)).padStart(2, '0');
-    const mm = String(m % 60).padStart(2, '0');
-    return `${h}:${mm}`;
+    const mins = slot * 20;
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}`;
 }
 
-// =================================================================
-// 4. DATA FETCHING WITH PAGINATION
-// =================================================================
+window.getLocalDayHourMinute = getLocalDayHourMinute;
+window.getSlot = getSlot;
+window.getTimeLabel = getTimeLabel;
+
+/* ---------------------------------------------------------------
+ * 3. SUPABASE CLIENT
+ * -------------------------------------------------------------*/
+let supabaseClient = null;
+
+function getSupabaseClient() {
+    if (!supabaseClient && window.supabase) {
+        supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+    }
+    return supabaseClient;
+}
+
+/* ---------------------------------------------------------------
+ * 4. DATA FETCHING
+ * -------------------------------------------------------------*/
 class DataFetcher {
     constructor() {
         this.supabase = getSupabaseClient();
     }
 
-    /**
-     * Fetch ALL data for a specific lot with pagination
-     * @param {string} lotName - Name of the parking lot
-     * @param {number} daysBack - Number of days back to fetch (default: 7)
-     * @returns {Promise<Array>} All records for the lot
-     */
-    async fetchLotData(lotName, daysBack = 7) {
-        console.log(`🔄 Fetching data for lot: ${lotName} (${daysBack} days back)`);
-
-        if (!this.supabase) {
-            throw new Error('Supabase client not initialized');
-        }
-
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-        const cutoffString = cutoffDate.toISOString();
-
-        let allData = [];
-        let hasMore = true;
-        let offset = 0;
-        let attempts = 0;
-
-        while (hasMore && attempts < CONFIG.MAX_RETRIES) {
-            try {
-                console.log(`📥 Fetching batch ${Math.floor(offset / CONFIG.BATCH_SIZE) + 1} (offset: ${offset})`);
-
-
-                // Request records ordered by checked_at ascending (oldest -> newest).
-                // Avoid selecting `id` to keep compatibility with schemas that don't
-                // expose an `id` column on this table. We still perform a defensive
-                // sort in the processor to ensure chronological processing.
-                const res = await this.supabase
-                    .from(CONFIG.TABLE_NAME)
-                    .select('checked_at, api_status_code')
-                    .eq('lot_name', lotName)
-                    .gte('checked_at', cutoffString)
-                    .range(offset, offset + CONFIG.BATCH_SIZE - 1)
-                    .order('checked_at', { ascending: true });
-
-                const data = res.data;
-                const error = res.error;
-
-                if (error) {
-                    throw error;
-                }
-
-                if (data && data.length > 0) {
-                    allData.push(...data);
-                    offset += CONFIG.BATCH_SIZE;
-                    hasMore = data.length === CONFIG.BATCH_SIZE;
-
-                    console.log(`✅ Batch loaded: ${data.length} records (total: ${allData.length})`);
-                } else {
-                    hasMore = false;
-                    console.log('📭 No more data to fetch');
-                }
-
-                attempts = 0; // Reset attempts on success
-
-            } catch (error) {
-                attempts++;
-                console.error(`❌ Error fetching batch (attempt ${attempts}):`, error);
-
-                if (attempts >= CONFIG.MAX_RETRIES) {
-                    throw new Error(`Failed to fetch data after ${CONFIG.MAX_RETRIES} attempts: ${error.message}`);
-                }
-
-                // Wait before retry
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-            }
-        }
-
-        console.log(`🎉 Fetching complete: ${allData.length} total records for ${lotName}`);
-        return allData;
-    }
-
-    /**
-     * Test connection to Supabase
-     */
     async testConnection() {
         try {
-            const { data, error } = await this.supabase
+            const { error } = await this.supabase
                 .from(CONFIG.TABLE_NAME)
                 .select('lot_name')
                 .limit(1);
 
             if (error) throw error;
-
-            console.log('✅ Supabase connection test successful');
             return true;
-        } catch (error) {
-            console.error('❌ Supabase connection test failed:', error);
+        } catch (err) {
+            console.error('❌ Supabase connection error:', err.message);
             return false;
         }
     }
+
+    async fetchLotData(lotName, daysBack = 7) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - daysBack);
+
+        let rows = [];
+        let offset = 0;
+        let hasMore = true;
+        let attempts = 0;
+
+        while (hasMore && attempts < CONFIG.MAX_RETRIES) {
+            try {
+                const { data, error } = await this.supabase
+                    .from(CONFIG.TABLE_NAME)
+                    .select('checked_at, api_status_code')
+                    .eq('lot_name', lotName)
+                    .gte('checked_at', cutoff.toISOString())
+                    .order('checked_at', { ascending: true })
+                    .range(offset, offset + CONFIG.BATCH_SIZE - 1);
+
+                if (error) throw error;
+
+                if (data.length > 0) {
+                    rows.push(...data);
+                    offset += CONFIG.BATCH_SIZE;
+                    hasMore = data.length === CONFIG.BATCH_SIZE;
+                } else {
+                    hasMore = false;
+                }
+            } catch (err) {
+                attempts++;
+                console.warn('⚠️ Raw fetch attempt failed:', err.message);
+                if (attempts >= CONFIG.MAX_RETRIES) throw err;
+            }
+        }
+
+        return rows;
+    }
+
+    async fetchLotHistoricalData(lotName) {
+        const { data, error } = await this.supabase
+            .from(CONFIG.HEATMAP_VIEW_NAME)
+            .select('weekday_index, slot_index, avg_status_code, sample_count')
+            .eq('lot_name', lotName);
+
+        if (error) {
+            console.error('❌ HIST fetch error:', error.message);
+            throw error;
+        }
+
+        return data || [];
+    }
 }
 
-// =================================================================
-// 5. DATA PROCESSING
-// =================================================================
+/* ---------------------------------------------------------------
+ * 5. DATA PROCESSING
+ * -------------------------------------------------------------*/
 class DataProcessor {
-    /**
-     * Process raw data into heatmap format
-     * @param {Array} rawData - Raw data from database
-     * @param {string} lotName - Name of the lot
-     * @returns {Object} Processed heatmap data
-     */
-    processHeatmapData(rawData, lotName) {
-        console.log(`🔄 Processing ${rawData.length} records for heatmap...`);
 
-        // 🔧 FIX: Use consistent timezone handling - local Israel time for both current time and data processing
+    createEmptyHeatmap(lotName) {
         const now = new Date();
-        const nowLocal = getLocalDayHourMinute(now.toISOString());
-        const currentDay = nowLocal.day;  // Use LOCAL day instead of UTC
-        const currentSlot = getSlot(nowLocal.hour, nowLocal.minute);  // Use LOCAL time
-
-        // 🔍 DEBUG: Log current day/slot calculation for validation
-        console.log(`🔍 [DEBUG] Fixed timezone handling:`, {
-            utcTime: now.toISOString(),
-            utcDay: now.getDay(),
-            fixedLocalDay: currentDay,
-            fixedLocalSlot: currentSlot,
-            localTime: `${nowLocal.hour.toString().padStart(2, '0')}:${nowLocal.minute.toString().padStart(2, '0')}`,
-            dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        });
-
-        // Initialize aggregated data structure
-        const aggregated = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
-        const dayDistribution = [0, 0, 0, 0, 0, 0, 0];
-
-        // Defensive: ensure rows are processed oldest -> newest so that later
-        // samples (more recent pulls) overwrite earlier ones deterministically.
-        // This is a no-op if data already arrives ordered from the DB.
-        try {
-            rawData.sort((a, b) => new Date(a.checked_at) - new Date(b.checked_at));
-        } catch (e) {
-            // If sorting fails for any reason, continue with original order
-            console.warn('[utils] Warning: rawData.sort failed, continuing without sort', e);
-        }
-
-        // Process each record
-        rawData.forEach((row, index) => {
-            const { day, hour, minute } = getLocalDayHourMinute(row.checked_at);
-            const slot = getSlot(hour, minute);
-
-            // Debug logging for first few records
-            if (index < 5) {
-                console.log(`📝 Record ${index}:`, {
-                    originalTime: row.checked_at,
-                    convertedDay: day,
-                    dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day],
-                    hebrewDay: CONFIG.DAYS[day],
-                    hour,
-                    minute,
-                    slot,
-                    status: row.api_status_code
-                });
-            }
-
-            // Count records per day
-            dayDistribution[day]++;
-
-            // Store the status code
-            if (slot >= 0 && slot < CONFIG.SLOTS_PER_DAY) {
-                aggregated[day][slot] = row.api_status_code;
-
-                // Data successfully stored in aggregated array
-            }
-        });
-
-        // Log day distribution
-        console.log('📈 Day distribution (records per day):');
-        dayDistribution.forEach((count, dayIndex) => {
-            console.log(`  ${dayIndex} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex]}/Hebrew: ${CONFIG.DAYS[dayIndex]}): ${count} records`);
-        });
-
-        // Interpolate missing data
-        const interpolated = this.interpolateData(aggregated, currentDay, currentSlot);
-
-        // add these debug logs/exports
-        try {
-            console.debug('[utils] ✅ Processed heatmap snapshot:', {
-                lotName: lotName,
-                totalRecords: rawData.length,
-                dayDistribution: dayDistribution,      // array of 7 counts
-                interpolated: interpolated,            // per-day interpolated arrays (if present)
-                rawSample: (aggregated || []).slice(0, 10) // first 10 raw records for quick inspection
-            });
-
-            // human-friendly day names (index -> hebrew)
-            const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-            console.debug('[utils] 🔎 Day distribution detail:');
-            (dayDistribution || []).forEach((cnt, idx) => {
-                console.debug(`  ${idx} (${dayNames[idx]}): ${cnt} records`);
-            });
-
-            // expose a snapshot globally for ad-hoc console inspection
-            window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
-            window.__HEATMAP_DEBUG.latest = {
-                lotName,
-                rawData: aggregated,
-                interpolated,
-                dayDistribution,
-                totalRecords: rawData.length,
-                processedAt: new Date().toISOString()
-            };
-        } catch (e) {
-            console.warn('[utils] debug logging failed', e);
-        }
+        const loc = getLocalDayHourMinute(now.toISOString());
+        const curDay = loc.day;
+        const curSlot = getSlot(loc.hour, loc.minute);
 
         return {
             lotName,
-            rawData: aggregated,
-            interpolated,
-            dayDistribution,
-            totalRecords: rawData.length,
-            processedAt: new Date().toISOString(),
-            currentDay,
-            currentSlot
+            rawData: Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0)),
+            interpolated: Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0)),
+            dayDistribution: [0, 0, 0, 0, 0, 0, 0],
+            totalRecords: 0,
+            processedAt: now.toISOString(),
+            currentDay: curDay,
+            currentSlot: curSlot
         };
     }
 
-    /**
-     * Interpolate missing data points
-     * @param {Array} aggregated - Aggregated data
-     * @param {number} currentDay - Current day index (0-6)
-     * @param {number} currentSlot - Current slot index (0-71)
-     * @returns {Array} Interpolated data
-     */
-    interpolateData(aggregated, currentDay, currentSlot) {
-        const interpolated = JSON.parse(JSON.stringify(aggregated));
+    processHeatmapData(rawData, lotName) {
+        const now = new Date();
+        const loc = getLocalDayHourMinute(now.toISOString());
+        const curDay = loc.day;
+        const curSlot = getSlot(loc.hour, loc.minute);
 
-        // For each day
+        const grid = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
+        const dist = [0, 0, 0, 0, 0, 0, 0];
+
+        try { rawData.sort((a, b) => new Date(a.checked_at) - new Date(b.checked_at)); }
+        catch (_) { }
+
+        rawData.forEach(r => {
+            const { day, hour, minute } = getLocalDayHourMinute(r.checked_at);
+            const slot = getSlot(hour, minute);
+
+            if (day < 0 || day > 6 || slot < 0 || slot >= CONFIG.SLOTS_PER_DAY) return;
+
+            dist[day]++;
+
+            if (r.api_status_code > 0) {
+                grid[day][slot] = r.api_status_code;
+            }
+        });
+
+        return {
+            lotName,
+            rawData: grid,
+            interpolated: this.interpolateData(grid),
+            dayDistribution: dist,
+            totalRecords: rawData.length,
+            processedAt: now.toISOString(),
+            currentDay: curDay,
+            currentSlot: curSlot
+        };
+    }
+
+    processHistoricalHeatmapData(rows, lotName) {
+        const now = new Date();
+        const loc = getLocalDayHourMinute(now.toISOString());
+        const curDay = loc.day;
+        const curSlot = getSlot(loc.hour, loc.minute);
+
+        const grid = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
+        const dist = [0, 0, 0, 0, 0, 0, 0];
+
+        rows.forEach(r => {
+            const d = r.weekday_index;
+            const s = r.slot_index;
+            const avg = Number(r.avg_status_code ?? 0);
+            const samples = Number(r.sample_count ?? 0);
+
+            if (d < 0 || d > 6 || s < 0 || s >= CONFIG.SLOTS_PER_DAY) return;
+
+            dist[d] += samples;
+
+            if (samples < 3) {
+                grid[d][s] = 0; // Mark as needing interpolation
+            } else {
+                let rounded = Math.round(avg);
+                if (rounded < 1 || rounded > 4) rounded = 4;
+                grid[d][s] = rounded;
+            }
+        });
+
+        // Apply interpolation to fill missing/insufficient slots
+        const interpolated = this.interpolateData(grid);
+
+        return {
+            lotName,
+            rawData: grid,
+            interpolated: interpolated,
+            dayDistribution: dist,
+            totalRecords: rows.length,
+            processedAt: now.toISOString(),
+            currentDay: curDay,
+            currentSlot: curSlot
+        };
+    }
+
+    /* --------------------------
+     * SMART COMBINER
+     * ------------------------*/
+    combineSmartHeatmap(rawP, histP) {
+        const smart = Array(7).fill(0).map(() => Array(CONFIG.SLOTS_PER_DAY).fill(0));
+
         for (let d = 0; d < 7; d++) {
-            const arr = interpolated[d];
-            let lastValidValue = 0;
-
-            // Forward pass
             for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
-                // Don't interpolate future data - use consistent timezone comparison
-                // CHANGED: We now ALLOW future data to be populated from historical stats (interpolated)
-                // so we removed the block that zeroed out future slots.
+                const rawVal = rawP.rawData[d][s];
+                const histVal = histP.interpolated[d][s]; // Use interpolated historical data
 
-                /* 
-                // OLD LOGIC:
-                if (d === currentDay && s > currentSlot) {
-                    interpolated[d][s] = 0;
-                    continue;
-                }
-                */
+                const isFuture =
+                    (d > rawP.currentDay) ||
+                    (d === rawP.currentDay && s > rawP.currentSlot);
 
-                if (arr[s] > 0) {
-                    lastValidValue = arr[s];
-                } else if (lastValidValue > 0) {
-                    interpolated[d][s] = lastValidValue;
+                if (!isFuture) {
+                    smart[d][s] = rawVal > 0 ? rawVal :
+                        histVal > 0 ? histVal : 0;
+                } else {
+                    smart[d][s] = histVal > 0 ? histVal : 0;
                 }
             }
         }
 
-        return interpolated;
-    }
-}
-
-// =================================================================
-// 6. ERROR HANDLING
-// =================================================================
-class ErrorHandler {
-    static handle(error, context = '') {
-        const errorInfo = {
-            message: error.message || 'Unknown error',
-            context,
-            timestamp: new Date().toISOString(),
-            stack: error.stack
+        return {
+            lotName: rawP.lotName,
+            rawData: smart,
+            interpolated: this.interpolateData(smart),
+            dayDistribution: rawP.dayDistribution,
+            totalRecords: rawP.totalRecords + histP.totalRecords,
+            processedAt: new Date().toISOString(),
+            currentDay: rawP.currentDay,
+            currentSlot: rawP.currentSlot
         };
+    }
 
-        console.error('🚨 Error occurred:', errorInfo);
+    /* --------------------------
+     * PREDICTION ONLY MODE
+     * ------------------------*/
+    buildPredictionOnlyMatrix(histProcessed) {
+        // Use the interpolated data for prediction-only mode
+        return {
+            lotName: histProcessed.lotName,
+            rawData: histProcessed.interpolated,
+            interpolated: histProcessed.interpolated,
+            dayDistribution: histProcessed.dayDistribution,
+            totalRecords: histProcessed.totalRecords,
+            processedAt: new Date().toISOString(),
+            currentDay: histProcessed.currentDay,
+            currentSlot: histProcessed.currentSlot
+        };
+    }
 
-        // Return user-friendly message
-        if (error.message?.includes('network')) {
-            return 'בעיית חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.';
-        } else if (error.message?.includes('unauthorized')) {
-            return 'שגיאת הרשאה. אנא רענן את הדף ונסה שוב.';
-        } else if (error.message?.includes('timeout')) {
-            return 'הבקשה ארכה יותר מדי. אנא נסה שוב.';
-        } else {
-            return 'אירעה שגיאה בטעינת הנתונים. אנא נסה שוב מאוחר יותר.';
+    /* --------------------------
+     * INTERPOLATION
+     * ------------------------*/
+    interpolateData(grid) {
+        const out = JSON.parse(JSON.stringify(grid));
+
+        for (let d = 0; d < 7; d++) {
+            let last = 0;
+            for (let s = 0; s < CONFIG.SLOTS_PER_DAY; s++) {
+                if (out[d][s] > 0) last = out[d][s];
+                else if (last > 0) out[d][s] = last;
+            }
         }
+
+        return out;
     }
 }
 
-// =================================================================
-// 7. LOADING STATES
-// =================================================================
+/* ---------------------------------------------------------------
+ * 6. EXPORTS
+ * -------------------------------------------------------------*/
+window.CONFIG = CONFIG;
+window.DataFetcher = DataFetcher;
+window.DataProcessor = DataProcessor;
+window.getTimeLabel = getTimeLabel;
+window.getLocalDayHourMinute = getLocalDayHourMinute;
+window.getSlot = getSlot;
+
+
+/* ========================================================================
+ * 7. LOADING MANAGER (needed by heatmap-viewer.js)
+ * ======================================================================*/
+
 class LoadingManager {
     static show(container, message = 'טוען נתונים...') {
         if (!container) return;
@@ -447,8 +356,7 @@ class LoadingManager {
                                background="transparent"
                                speed="1"
                                loop
-                               autoplay>
-                </lottie-player>
+                               autoplay></lottie-player>
                 <p>${message}</p>
             </div>
         `;
@@ -458,62 +366,9 @@ class LoadingManager {
         if (!container) return;
 
         const loading = container.querySelector('.loading');
-        if (loading) {
-            loading.remove();
-        }
+        if (loading) loading.remove();
     }
 }
 
-// =================================================================
-// 8. EXPORTS
-// =================================================================
-window.DataFetcher = DataFetcher;
-window.DataProcessor = DataProcessor;
-window.ErrorHandler = ErrorHandler;
+// EXPOSE globally
 window.LoadingManager = LoadingManager;
-window.CONFIG = CONFIG;
-window.getLocalDayHourMinute = getLocalDayHourMinute;
-window.getSlot = getSlot;
-window.getTimeLabel = getTimeLabel;
-
-// Also expose a small debug hint so you can quickly inspect tz conversions from console:
-window.__HEATMAP_DEBUG = window.__HEATMAP_DEBUG || {};
-window.__HEATMAP_DEBUG.tzPartsForISO = tzPartsForISO;
-
-// --- After processing/interpolating per-day arrays, log highest slot seen per day for debugging ---
-/*
-  Insert this snippet after processed.interpolated is prepared (or at the end of your processing function)
-  so you can see where the latest samples map to.
-*/
-(function () {
-    try {
-        if (window.__HEATMAP_DEBUG && window.__HEATMAP_DEBUG.latest) {
-            const processed = window.__HEATMAP_DEBUG.latest;
-            const slotsPerDay = (typeof CONFIG !== 'undefined' && CONFIG.SLOTS_PER_DAY) ? CONFIG.SLOTS_PER_DAY : (processed.interpolated && processed.interpolated[0] ? processed.interpolated[0].length : 24);
-            const maxSlots = (processed.rawData || []).map((dayArr, d) => {
-                // rawData likely holds raw records per day, but if structure differs use dayDistribution and processed.interpolated as fallback
-                const samples = dayArr || [];
-                let maxSlot = -1;
-                for (const s of samples) {
-                    // expect s.hour and s.minute to be present on samples after conversion
-                    const slot = mapSampleToSlot(slotsPerDay, s);
-                    if (slot > maxSlot) maxSlot = slot;
-                }
-                return maxSlot;
-            });
-            console.debug('[utils] 🔎 Max slot index seen per day (0..N-1):', maxSlots);
-            // human-friendly check: convert slot to time label for quick verification
-            function slotToTime(slot) {
-                if (slot < 0) return 'none';
-                const slotsPerHour = slotsPerDay / 24;
-                const hour = Math.floor(slot / slotsPerHour);
-                const intra = slot % slotsPerHour;
-                const minutes = Math.round(intra * (60 / slotsPerHour));
-                return `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-            }
-            console.debug('[utils] 🔎 Max slot human times per day:', maxSlots.map(s => slotToTime(s)));
-        }
-    } catch (e) {
-        console.debug('[utils] max-slot debug failed', e);
-    }
-})();

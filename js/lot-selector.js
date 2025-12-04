@@ -10,7 +10,7 @@ class LotSelector {
         this.lotCount = null;
         this.compareBtn = null;
         this.selectionMode = false;
-        
+
         this.init();
     }
 
@@ -27,7 +27,7 @@ class LotSelector {
 
         // Load lots data
         await this.loadLots();
-        
+
         // Render lots
         this.renderLots();
     }
@@ -65,44 +65,38 @@ class LotSelector {
 
     async loadLots() {
         try {
-            console.log('📊 Loading lots data from JSON file...');
-            
             const response = await fetch('./data/lots-data.json');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             // Sort lots alphabetically by Hebrew name
             this.allLots = data.parking_lots.active.sort((a, b) => a.name.localeCompare(b.name, 'he'));
             this.filteredLots = [...this.allLots];
-            
-            console.log(`✅ Loaded ${this.allLots.length} parking lots (sorted alphabetically)`);
-            
+
             // Update count
             this.updateLotCount();
-            
+
         } catch (error) {
-            console.error('❌ Error loading lots data:', error);
+            console.error('Error loading lots data:', error);
             this.showError('שגיאה בטעינת נתוני החניונים');
         }
     }
 
     filterLots(searchTerm) {
         const term = searchTerm.trim().toLowerCase();
-        
+
         if (!term) {
             this.filteredLots = [...this.allLots];
         } else {
-            this.filteredLots = this.allLots.filter(lot => 
+            this.filteredLots = this.allLots.filter(lot =>
                 lot.name.toLowerCase().includes(term) ||
                 lot.code_achoza.toString().includes(term) ||
                 lot.website_id.toString().includes(term)
             );
         }
-        
-        console.log(`🔍 Search: "${searchTerm}" - Found ${this.filteredLots.length} results`);
-        
+
         this.updateLotCount();
         this.renderLots();
     }
@@ -152,13 +146,13 @@ class LotSelector {
         const card = document.createElement('div');
         card.className = 'lot-card';
         card.setAttribute('data-lot-name', lot.name);
-        
+
         // Generate a parking icon based on lot name
         const icon = this.getLotIcon(lot.name);
-        
+
         const isSelected = this.selectedLots.some(selected => selected.name === lot.name);
         const selectedClass = isSelected ? 'selected' : '';
-        
+
         card.innerHTML = `
             <div class="lot-icon">${icon}</div>
             <div class="lot-name">${lot.name}</div>
@@ -191,7 +185,7 @@ class LotSelector {
     getLotIcon(lotName) {
         // Simple icon mapping based on lot name keywords
         const name = lotName.toLowerCase();
-        
+
         if (name.includes('רידינג')) return '🏭';
         if (name.includes('תחנה')) return '🚉';
         if (name.includes('חוף') || name.includes('ים')) return '🏖️';
@@ -203,13 +197,13 @@ class LotSelector {
         if (name.includes('כרמל')) return '⛰️';
         if (name.includes('יפו')) return '🍊';
         if (name.includes('תל')) return '🏙️';
-        
+
         return '🅿️'; // Default parking icon
     }
 
     toggleSelectionMode() {
         this.selectionMode = !this.selectionMode;
-        
+
         if (this.selectionMode) {
             this.compareBtn.textContent = 'בטל השוואה';
             this.compareBtn.classList.add('active');
@@ -220,14 +214,14 @@ class LotSelector {
             this.selectedLots = [];
             document.getElementById('compare-status').style.display = 'none';
         }
-        
+
         this.renderLots();
         this.updateCompareUI();
     }
 
     toggleLotSelection(lot, card) {
         const existingIndex = this.selectedLots.findIndex(selected => selected.name === lot.name);
-        
+
         if (existingIndex >= 0) {
             // Remove from selection
             this.selectedLots.splice(existingIndex, 1);
@@ -241,14 +235,14 @@ class LotSelector {
             card.querySelector('.select-btn').textContent = 'בוטל';
             card.querySelector('.select-btn').classList.add('selected');
         }
-        
+
         this.updateCompareUI();
     }
 
     updateCompareUI() {
         const compareStatus = document.getElementById('compare-status');
         if (!compareStatus) return;
-        
+
         if (this.selectedLots.length === 0) {
             compareStatus.textContent = 'בחר עד 2 חניונים להשוואה';
             compareStatus.className = 'compare-status';
@@ -261,7 +255,7 @@ class LotSelector {
                 <button class="start-compare-btn" id="start-compare-btn">התחל השוואה</button>
             `;
             compareStatus.className = 'compare-status ready';
-            
+
             // Add event listener to the new button
             const startBtn = document.getElementById('start-compare-btn');
             if (startBtn) {
@@ -274,9 +268,7 @@ class LotSelector {
 
     startComparison() {
         if (this.selectedLots.length !== 2) return;
-        
-        console.log(`🔄 Starting comparison between: ${this.selectedLots[0].name} and ${this.selectedLots[1].name}`);
-        
+
         const params = new URLSearchParams({
             lot1: this.selectedLots[0].name,
             code1: this.selectedLots[0].code_achoza,
@@ -286,27 +278,25 @@ class LotSelector {
             id2: this.selectedLots[1].website_id,
             compare: 'true'
         });
-        
+
         window.location.href = `heatmap.html?${params.toString()}`;
     }
 
     navigateToHeatmap(lot) {
-        console.log(`🚀 Navigating to heatmap for: ${lot.name}`);
-        
         // Create URL with lot information
         const params = new URLSearchParams({
             lot: lot.name,
             code: lot.code_achoza,
             id: lot.website_id
         });
-        
+
         // Navigate to heatmap page
         window.location.href = `heatmap.html?${params.toString()}`;
     }
 
     showNoResults() {
         const searchTerm = this.searchInput.value.trim();
-        
+
         this.lotsGrid.innerHTML = `
             <div class="no-results">
                 <div class="no-results-icon">🔍</div>
@@ -331,6 +321,5 @@ class LotSelector {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Initializing Lot Selector...');
     new LotSelector();
 });

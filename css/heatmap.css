@@ -729,3 +729,92 @@
         border-color: #e74c3c;
     }
 }
+
+/* ==============================
+   Toggle Switch (RTL-ready)
+   ============================== */
+
+.toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    margin: 15px 0 25px;
+    direction: rtl;
+}
+
+.toggle-label {
+    font-size: 0.95rem;
+    color: #444;
+}
+
+/* Switch container */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 56px;
+    height: 28px;
+}
+
+/* Hide checkbox */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Slider */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 30px;
+}
+
+/* Circle */
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+/* Checked (Prediction mode ON) */
+.switch input:checked+.slider {
+    background-color: #3396d3;
+}
+
+.switch input:checked+.slider:before {
+    transform: translateX(28px);
+}
+
+
+.status-3,
+.status-4 {
+    color: white;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.mode-btn {
+    padding: 6px 12px;
+    background: #eee;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.mode-btn.active {
+    background: #3396d3;
+    color: white;
+}

@@ -6,7 +6,7 @@ body {
     padding: 20px;
     background-color: #f8f8f8;
     /* --- RTL: Set entire document to RTL --- */
-    direction: rtl; 
+    direction: rtl;
 }
 
 h1 {
@@ -20,7 +20,7 @@ h2 {
     font-size: 1.2em;
     color: #555;
     /* --- RTL: Ensure lot titles are right-aligned --- */
-    text-align: right; 
+    text-align: right;
 }
 
 #heatmap-container {
@@ -41,33 +41,35 @@ h2 {
     border: 1px solid #ccc;
     margin-bottom: 30px;
     box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
-    overflow: hidden; 
+    overflow: hidden;
 }
 
 /* Style for the row/column labels */
 .time-label {
-    padding: 0 5px; 
+    padding: 0 5px;
     font-weight: bold;
     text-align: center;
     background-color: #e0e0e0;
     font-size: 0.7em;
     box-sizing: border-box;
     border: 1px solid #ddd;
-    height: 10px; 
-    display: flex; 
+    height: 10px;
+    display: flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
 }
 
 /* Day labels (the first column in every row) */
-.grid-container .time-label:nth-child(73n+1) { 
-    height: 10px; 
-    text-align: right; /* --- RTL: Right align the day names --- */
-    padding-right: 10px; 
+.grid-container .time-label:nth-child(73n+1) {
+    height: 10px;
+    text-align: right;
+    /* --- RTL: Right align the day names --- */
+    padding-right: 10px;
     font-weight: bold;
     font-size: 0.8em;
-    justify-content: flex-end; /* --- RTL: Push day name to the right --- */
+    justify-content: flex-end;
+    /* --- RTL: Push day name to the right --- */
 }
 
 /* The very top row (Time Header) needs a custom height to show the time string */
@@ -84,18 +86,32 @@ h2 {
  * ---------------------------------- */
 
 .heatmap-cell {
-    height: 10px; 
+    height: 10px;
     border: none;
     box-sizing: border-box;
-    cursor: help; 
+    cursor: help;
 }
 
 /* Color codes for Vacancy Status (code_achoza) */
-.status-1 { background-color: #4CAF50; } 
-.status-2 { background-color: #FFC107; } 
-.status-3 { background-color: #F44336; } 
-.status-4 { background-color: #9E9E9E; } 
-.status-empty { background-color: #f7f7f7; } 
+.status-1 {
+    background-color: #4CAF50;
+}
+
+.status-2 {
+    background-color: #FFC107;
+}
+
+.status-3 {
+    background-color: #F44336;
+}
+
+.status-4 {
+    background-color: #9E9E9E;
+}
+
+.status-empty {
+    background-color: #f7f7f7;
+}
 
 
 /* ----------------------------------
@@ -111,20 +127,21 @@ h2 {
     /* --- RTL: Ensure legend text starts from the right --- */
     text-align: right;
 }
+
 .legend h3 {
     margin-top: 0;
     font-size: 1.1em;
 }
+
 .legend span {
     display: inline-block;
     padding: 3px 8px;
-    margin-left: 10px; /* Adjusted margin for RTL */
+    margin-left: 10px;
+    /* Adjusted margin for RTL */
     margin-right: 0;
     margin-bottom: 5px;
     font-size: 0.9em;
     border-radius: 3px;
     color: #333;
-    border: none; 
+    border: none;
 }
-.status-3, .status-4 { color: white; }
-
